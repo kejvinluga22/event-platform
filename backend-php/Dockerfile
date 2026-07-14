@@ -16,6 +16,8 @@ RUN apt-get update && apt-get install -y \
     && ln -sf ../mods-available/mpm_prefork.conf /etc/apache2/mods-enabled/mpm_prefork.conf \
     && rm -rf /var/lib/apt/lists/*
 
+RUN ls -la /etc/apache2/mods-enabled/ | grep -i mpm; apache2ctl -M 2>&1 | grep -i mpm; apache2ctl configtest
+
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 WORKDIR /var/www/html
