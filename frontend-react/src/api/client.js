@@ -1,8 +1,9 @@
 import axios from 'axios'
 
 // Axios instance — talks to the PHP REST API. In dev, /api is proxied by Vite.
+// In production, set VITE_API_URL to the backend's public URL (e.g. Railway service URL + /api).
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: import.meta.env.VITE_API_URL || '/api',
   withCredentials: true,
   headers: { 'Content-Type': 'application/json' },
 })
