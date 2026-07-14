@@ -1,0 +1,10 @@
+RewriteEngine On
+
+# Route everything under this folder to the front controller index.php
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^ index.php [QSA,L]
+
+# Make sure Authorization header reaches PHP (some Apache builds strip it)
+RewriteCond %{HTTP:Authorization} .
+RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]

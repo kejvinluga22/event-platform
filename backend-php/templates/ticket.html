@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<style>
+  @page { margin: 0; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: 'DejaVu Sans', sans-serif;
+    color: #111;
+    background: #fff;
+  }
+  .wrap { padding: 48px 52px 60px; }
+
+  /* TICKET wordmark */
+  .wordmark {
+    font-size: 46px;
+    font-weight: bold;
+    letter-spacing: 3px;
+    margin-bottom: 28px;
+  }
+
+  /* Big event title with rule under it */
+  .event-title {
+    font-size: 30px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding-bottom: 16px;
+    border-bottom: 2px solid #111;
+    margin-bottom: 22px;
+  }
+
+  /* Two-column body */
+  .body { width: 100%; border-collapse: separate; }
+  .body > tbody > tr > td { vertical-align: top; }
+  .left  { width: 54%; padding-right: 32px; }
+  .right { width: 46%; }
+
+  .sec-label {
+    font-size: 12px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  .sec-value { font-size: 13px; color: #333; line-height: 1.55; min-height: 28px; }
+  .divider { border: none; border-top: 1px solid #ddd; margin: 18px 0; }
+  .cols td { vertical-align: top; width: 50%; padding-right: 12px; }
+
+  .footnote { font-size: 11px; color: #555; line-height: 1.55; }
+
+  /* Right side ticket stub */
+  .stub {
+    border: 1px solid #cfcfcf;
+    border-radius: 10px;
+    padding: 24px 22px;
+    text-align: left;
+  }
+  .stub-kicker {
+    font-size: 13px;
+    font-weight: bold;
+    letter-spacing: .3px;
+    margin-bottom: 14px;
+  }
+  .stub-row {
+    font-size: 12px;
+    color: #555;
+    line-height: 2;
+  }
+  .stub-row b {
+    color: #111;
+    font-weight: bold;
+  }
+  .qr-box { text-align: center; margin-top: 18px; }
+  .qr-box img { width: 200px; height: 200px; }
+  .hash {
+    text-align: center;
+    font-size: 9px;
+    color: #c0c0c0;
+    letter-spacing: 1px;
+    margin-top: 6px;
+    word-break: break-all;
+    font-family: 'DejaVu Sans Mono', monospace;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="wordmark">TICKET</div>
+  <div class="event-title">{{Event_Title}}</div>
+
+  <table class="body">
+    <tr>
+      <td class="left">
+        <div class="sec-label">Ticket Information:</div>
+        <div class="sec-value">{{Status_Label}}</div>
+        <hr class="divider">
+
+        <table class="cols"><tr>
+          <td>
+            <div class="sec-label">Venue:</div>
+            <div class="sec-value">{{Venue}}</div>
+          </td>
+          <td>
+            <div class="sec-label">Timing:</div>
+            <div class="sec-value">{{Timing}}</div>
+          </td>
+        </tr></table>
+        <hr class="divider">
+
+        <div class="sec-label">Minimum age:</div>
+        <div class="footnote">{{Age_Notice}}</div>
+        <br>
+
+        <div class="sec-label">Important:</div>
+        <div class="footnote">
+          This is an e-ticket, be mindful of the environment, there's no need
+          to print this e-ticket. Show this ticket to the staff in the
+          entrance on the day of the event.
+        </div>
+      </td>
+
+      <td class="right">
+        <div class="stub">
+          <div class="stub-kicker">Entrance Ticket</div>
+
+          <div class="stub-row"><b>Price:</b> {{Price}}</div>
+          <div class="stub-row"><b>Order time:</b> {{Order_Time}}</div>
+
+          <div class="stub-row"><b>Client name:</b> {{Attendee_Name}}</div>
+
+          <div class="qr-box"><img src="{{QR_DATA_URI}}" alt="Entry QR"></div>
+          <div class="hash">{{Order_Hash}}</div>
+        </div>
+      </td>
+    </tr>
+  </table>
+
+</div>
+</body>
+</html>
