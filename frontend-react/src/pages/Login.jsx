@@ -36,7 +36,11 @@ export default function Login() {
         (u.role === 'scanner' ? '/scan' : '/')
       navigate(dest, { replace: true })
     } catch (err) {
-      setError(err?.response?.data?.error || 'Unable to sign in. Check your credentials.')
+      if (err?.response?.data?.offline) {
+        setError('Cannot reach the server right now. Check your connection and try again.')
+      } else {
+        setError(err?.response?.data?.error || 'Unable to sign in. Check your credentials.')
+      }
     } finally {
       setBusy(false)
     }
