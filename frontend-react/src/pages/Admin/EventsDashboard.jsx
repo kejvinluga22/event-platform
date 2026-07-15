@@ -213,13 +213,14 @@ export default function EventsDashboard() {
               <th>Title</th>
               <th>Venue</th>
               <th>Capacity</th>
+              <th>Price</th>
               <th>Status</th>
               <th style={{ textAlign: 'right' }}>Actions</th>
             </tr>
           </thead>
           <tbody>
             {filteredEvents.length === 0 && (
-              <tr><td colSpan={5} className="muted" style={{ textAlign: 'center', padding: 36 }}>
+              <tr><td colSpan={6} className="muted" style={{ textAlign: 'center', padding: 36 }}>
                 {query ? 'No events match your search.' :
                  tab === 'archived' ? 'No archived events.' :
                  'No events yet. Create your first one to get started.'}
@@ -239,6 +240,7 @@ export default function EventsDashboard() {
                 </td>
                 <td className="muted">{ev.venue || '—'}</td>
                 <td>{ev.capacity || '∞'}</td>
+                <td>{ev.price != null && ev.price !== '' ? `${ev.price} ${ev.currency || 'ALL'}` : 'FREE'}</td>
                 <td><span className={`pill ${ev.status}`}>{ev.status}</span></td>
                 <td>
                   <div className="row" style={{ justifyContent: 'flex-end', gap: 6, flexWrap: 'wrap' }}>
