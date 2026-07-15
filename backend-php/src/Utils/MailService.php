@@ -9,9 +9,11 @@ use Database;
 
 /**
  * MailService
- * Multi-provider SMTP sender with priority: DB-backed settings first
+ * Priority: Brevo's HTTP API (if BREVO_API_KEY is set) first — it sends over
+ * plain HTTPS, so it isn't affected by hosts (e.g. Railway) that block
+ * outbound SMTP ports. Falls back to the SMTP chain: DB-backed settings
  * (configured in the admin UI), then the .env failover chain (Gmail ->
- * Outlook -> SendGrid -> Mailgun -> Brevo).
+ * Outlook -> SendGrid -> Mailgun -> Brevo SMTP).
  */
 final class MailService
 {
@@ -19,6 +21,17 @@ final class MailService
     public static function send(string $toEmail, string $subject, string $bodyHtml, ?string $attachmentPath = null): array
     {
         $lastError = null;
+
+        $apiKey = getenv('BREVO_API_KEY') ?: null;
+        if ($apiKey) {
+            [$fromEmail, $fromName] = self::resolveFromIdentity();
+            $result = self::sendViaBrevoApi($apiKey, $toEmail, $subject, $bodyHtml, $attachmentPath, $fromEmail, $fromName);
+            if ($result['sent']) {
+                return ['provider' => 'brevo_api', 'sent' => true, 'error' => null];
+            }
+            $lastError = $result['error'];
+        }
+
         $providers = self::resolveProviders();
 
         foreach ($providers as $name => $p) {
@@ -63,6 +76,74 @@ final class MailService
         }
 
         return ['provider' => null, 'sent' => false, 'error' => $lastError ?? 'No mail provider configured'];
+    }
+
+    /** Send via Brevo's transactional email HTTP API. @return array{sent:bool, error:?string} */
+    private static function sendViaBrevoApi(
+        string $apiKey,
+        string $toEmail,
+        string $subject,
+        string $bodyHtml,
+        ?string $attachmentPath,
+        string $fromEmail,
+        string $fromName
+    ): array {
+        $payload = [
+            'sender'      => ['email' => $fromEmail, 'name' => $fromName],
+            'to'          => [['email' => $toEmail]],
+            'subject'     => $subject,
+            'htmlContent' => $bodyHtml,
+        ];
+
+        if ($attachmentPath && is_file($attachmentPath)) {
+            $payload['attachment'] = [[
+                'content' => base64_encode((string) file_get_contents($attachmentPath)),
+                'name'    => basename($attachmentPath),
+            ]];
+        }
+
+        $ch = curl_init('https://api.brevo.com/v3/smtp/email');
+        curl_setopt_array($ch, [
+            CURLOPT_POST           => true,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_CONNECTTIMEOUT => 8,
+            CURLOPT_TIMEOUT        => 15,
+            CURLOPT_HTTPHEADER     => [
+                'api-key: ' . $apiKey,
+                'Content-Type: application/json',
+                'Accept: application/json',
+            ],
+            CURLOPT_POSTFIELDS => json_encode($payload),
+        ]);
+        $response = curl_exec($ch);
+        $status   = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curlErr  = curl_error($ch);
+        curl_close($ch);
+
+        if ($response === false) {
+            return ['sent' => false, 'error' => 'Brevo request failed: ' . $curlErr];
+        }
+        if ($status >= 200 && $status < 300) {
+            return ['sent' => true, 'error' => null];
+        }
+        $decoded = json_decode((string) $response, true);
+        return ['sent' => false, 'error' => 'Brevo API error (' . $status . '): ' . ($decoded['message'] ?? $response)];
+    }
+
+    /** Resolve the "From" identity: DB-configured value wins, else .env default. @return array{0:string,1:string} */
+    private static function resolveFromIdentity(): array
+    {
+        $cfg = require __DIR__ . '/../../config/credentials.php';
+        try {
+            $db = Database::connection();
+            $s  = Settings::all($db);
+            return [
+                $s['smtp.from_email'] ?: $cfg['mail']['from_email'],
+                $s['smtp.from_name']  ?: $cfg['mail']['from_name'],
+            ];
+        } catch (\Throwable $e) {
+            return [$cfg['mail']['from_email'], $cfg['mail']['from_name']];
+        }
     }
 
     /**
