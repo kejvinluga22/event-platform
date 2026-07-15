@@ -62,7 +62,7 @@ export default function Login() {
               autoFocus
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="admin@smartevent.local"
+              placeholder="Email"
               required
             />
           </div>
