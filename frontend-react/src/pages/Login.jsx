@@ -62,7 +62,7 @@ export default function Login() {
               autoFocus
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="admin@smartevent.local"
+              placeholder=""
               required
             />
           </div>
@@ -75,7 +75,7 @@ export default function Login() {
               autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
+              placeholder=""
               required
             />
           </div>
