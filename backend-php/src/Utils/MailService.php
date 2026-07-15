@@ -29,7 +29,9 @@ final class MailService
             if ($result['sent']) {
                 return ['provider' => 'brevo_api', 'sent' => true, 'error' => null];
             }
-            $lastError = $result['error'];
+            $lastError = 'Brevo API: ' . $result['error'];
+        } else {
+            $lastError = 'BREVO_API_KEY not set in this environment';
         }
 
         $providers = self::resolveProviders();
@@ -70,12 +72,12 @@ final class MailService
                 $mail->send();
                 return ['provider' => $name, 'sent' => true, 'error' => null];
             } catch (MailException $e) {
-                $lastError = $e->getMessage();
+                $lastError .= " | SMTP [$name]: " . $e->getMessage();
                 continue;
             }
         }
 
-        return ['provider' => null, 'sent' => false, 'error' => $lastError ?? 'No mail provider configured'];
+        return ['provider' => null, 'sent' => false, 'error' => $lastError ?: 'No mail provider configured'];
     }
 
     /** Send via Brevo's transactional email HTTP API. @return array{sent:bool, error:?string} */
