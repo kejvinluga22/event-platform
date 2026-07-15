@@ -84,4 +84,37 @@ export async function syncOfflineScans() {
   return data.data
 }
 
+// ---------------------------------------------------------------------------
+// Authenticated file downloads/views (CSV/Excel/PDF export, badge, ticket,
+// certificate). These endpoints require a Bearer token, which a plain <a
+// href> can't send — and the HttpOnly cookie fallback doesn't reliably work
+// either, since it's set via a cross-site XHR response (frontend and backend
+// are different Railway domains), which browsers increasingly treat as a
+// third-party cookie and block. Fetching through `api` (which does attach
+// the header) and handing the browser a blob URL sidesteps both problems.
+// ---------------------------------------------------------------------------
+async function fetchBlobUrl(path) {
+  const res = await api.get(path, { responseType: 'blob' })
+  return URL.createObjectURL(res.data)
+}
+
+/** Open a file (PDF ticket/badge/certificate) in a new tab. */
+export async function openFile(path) {
+  const url = await fetchBlobUrl(path)
+  window.open(url, '_blank')
+  setTimeout(() => URL.revokeObjectURL(url), 60_000)
+}
+
+/** Download a file (CSV/Excel export) with the given filename. */
+export async function downloadFile(path, filename) {
+  const url = await fetchBlobUrl(path)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  URL.revokeObjectURL(url)
+}
+
 export default api

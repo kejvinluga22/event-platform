@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import api, {
-  API_ORIGIN,
+  openFile,
   queueOfflineScan,
   getOfflineScans,
   syncOfflineScans,
@@ -240,8 +240,8 @@ export default function PwaScannerPortal() {
                 <div className="muted" style={{ opacity: 0.7, fontSize: 13 }}>{m.attendee_email} · {m.access_level}</div>
                 <span className={`pill ${m.checkin_status}`} style={{ marginTop: 8, display: 'inline-block' }}>{m.checkin_status}</span>
                 <div className="row" style={{ gap: 8, marginTop: 12 }}>
-                  <a className="btn ghost sm" style={{ color: '#e8eaed', borderColor: '#2a2f36' }} href={`${API_ORIGIN}/api/registrations/${m.id}/badge`} target="_blank" rel="noreferrer">Badge</a>
-                  <a className="btn ghost sm" style={{ color: '#e8eaed', borderColor: '#2a2f36' }} href={`${API_ORIGIN}/api/registrations/${m.id}/certificate`} target="_blank" rel="noreferrer">Certificate</a>
+                  <button type="button" className="btn ghost sm" style={{ color: '#e8eaed', borderColor: '#2a2f36' }} onClick={() => openFile(`/registrations/${m.id}/badge`)}>Badge</button>
+                  <button type="button" className="btn ghost sm" style={{ color: '#e8eaed', borderColor: '#2a2f36' }} onClick={() => openFile(`/registrations/${m.id}/certificate`)}>Certificate</button>
                 </div>
               </div>
             ))}
