@@ -88,7 +88,7 @@ export default function Login() {
         </form>
 
         <div className="muted" style={{ fontSize: 12, marginTop: 18, textAlign: 'center' }}>
-          Default seed login — admin@smartevent.local / Admin@123
+          
         </div>
       </div>
     </div>
