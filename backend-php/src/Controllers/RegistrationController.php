@@ -103,13 +103,20 @@ final class RegistrationController
                 $qrToken = Token::signQr($regId, (int) $event['id'], $access);
                 $this->db->prepare('UPDATE registrations SET qr_token = :t WHERE id = :id')
                          ->execute([':t' => $qrToken, ':id' => $regId]);
-                $this->queueConfirmation($event, $regId, $name, $email, $qrToken, $access);
             }
 
             $this->db->commit();
         } catch (\Throwable $e) {
             $this->db->rollBack();
             throw $e;
+        }
+
+        // Send the confirmation email after the transaction is committed, not
+        // inside it — an SMTP attempt (even with a short timeout) shouldn't
+        // hold the registrations row lock, and a mail failure shouldn't roll
+        // back an otherwise-successful registration.
+        if ($status === 'confirmed') {
+            $this->queueConfirmation($event, $regId, $name, $email, $qrToken, $access);
         }
 
         $limiter->reset('public_register');

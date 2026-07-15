@@ -28,8 +28,14 @@ final class MailService
             try {
                 $mail = new PHPMailer(true);
                 $mail->isSMTP();
-                $mail->Host       = $p['host'];
-                $mail->Port       = (int) $p['port'];
+                $mail->Host          = $p['host'];
+                $mail->Port          = (int) $p['port'];
+                // Default PHPMailer connect timeout is 300s, which leaves the
+                // caller (a "send test" click, or a guest's registration
+                // request) hanging for up to 5 minutes if the SMTP port is
+                // blocked or unreachable. Fail fast instead.
+                $mail->Timeout       = 8;
+                $mail->SMTPKeepAlive = false;
                 $mail->SMTPAuth   = true;
                 $mail->Username   = $p['user'];
                 $mail->Password   = $p['pass'];
