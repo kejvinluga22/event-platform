@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import api from '../../api/client'
+import api, { API_ORIGIN } from '../../api/client'
 import { useAuth } from '../../contexts/AuthContext'
 import Button from '../../components/Common/Button'
 import AnalyticsChart from '../../components/Dashboard/AnalyticsChart'
@@ -278,9 +278,9 @@ export default function EventsDashboard() {
                         >🗑</button>
                       </>
                     )}
-                    <a className="btn ghost sm" href={`/api/events/${ev.id}/export`}>CSV</a>
-                    <a className="btn ghost sm" href={`/api/events/${ev.id}/export/xlsx`}>Excel</a>
-                    <a className="btn ghost sm" href={`/api/events/${ev.id}/export/pdf`}>PDF</a>
+                    <a className="btn ghost sm" href={`${API_ORIGIN}/api/events/${ev.id}/export`}>CSV</a>
+                    <a className="btn ghost sm" href={`${API_ORIGIN}/api/events/${ev.id}/export/xlsx`}>Excel</a>
+                    <a className="btn ghost sm" href={`${API_ORIGIN}/api/events/${ev.id}/export/pdf`}>PDF</a>
                   </div>
                 </td>
               </tr>
@@ -329,9 +329,9 @@ export default function EventsDashboard() {
                             <td><span className={`pill ${r.checkin_status}`}>{r.checkin_status}</span></td>
                             <td>
                               <div className="row" style={{ justifyContent: 'flex-end', gap: 6, flexWrap: 'wrap' }}>
-                                <a className="btn ghost sm" href={`/api/registrations/${r.id}/ticket.pdf`} target="_blank" rel="noreferrer">Ticket</a>
-                                <a className="btn ghost sm" href={`/api/registrations/${r.id}/badge`} target="_blank" rel="noreferrer">Badge</a>
-                                <a className="btn ghost sm" href={`/api/registrations/${r.id}/certificate`} target="_blank" rel="noreferrer">Cert</a>
+                                <a className="btn ghost sm" href={`${API_ORIGIN}/api/registrations/${r.id}/ticket.pdf`} target="_blank" rel="noreferrer">Ticket</a>
+                                <a className="btn ghost sm" href={`${API_ORIGIN}/api/registrations/${r.id}/badge`} target="_blank" rel="noreferrer">Badge</a>
+                                <a className="btn ghost sm" href={`${API_ORIGIN}/api/registrations/${r.id}/certificate`} target="_blank" rel="noreferrer">Cert</a>
                                 {isAdmin() && r.status === 'confirmed' && (
                                   <button
                                     className="btn ghost sm"

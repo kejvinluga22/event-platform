@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import api from '../../api/client'
+import api, { API_ORIGIN } from '../../api/client'
 import Button from '../../components/Common/Button'
 import FormRenderer, { validateForm } from '../../components/FormBuilder/FormRenderer'
 
@@ -98,12 +98,12 @@ export default function RegistrationPortal() {
           </p>
           <div className="row" style={{ gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
             {success.pdf_url && (
-              <a className="btn primary" href={success.pdf_url} target="_blank" rel="noreferrer" style={{ display: 'inline-block' }}>
+              <a className="btn primary" href={API_ORIGIN + success.pdf_url} target="_blank" rel="noreferrer" style={{ display: 'inline-block' }}>
                 Download e-ticket (PDF)
               </a>
             )}
             {success.ticket_url && (
-              <a className="btn ghost" href={success.ticket_url} target="_blank" rel="noreferrer" style={{ display: 'inline-block' }}>
+              <a className="btn ghost" href={API_ORIGIN + success.ticket_url} target="_blank" rel="noreferrer" style={{ display: 'inline-block' }}>
                 View online
               </a>
             )}

@@ -2,11 +2,21 @@ import axios from 'axios'
 
 // Axios instance — talks to the PHP REST API. In dev, /api is proxied by Vite.
 // In production, set VITE_API_URL to the backend's public URL (e.g. Railway service URL + /api).
+const API_BASE = import.meta.env.VITE_API_URL || '/api'
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || '/api',
+  baseURL: API_BASE,
   withCredentials: true,
   headers: { 'Content-Type': 'application/json' },
 })
+
+// The backend embeds root-relative paths like "/api/registrations/5/ticket.pdf"
+// in some JSON responses (download/view links). Frontend and backend are
+// separate Railway services with different origins in production, so those
+// paths must be resolved against the API's own origin — not the page's
+// current origin — or the browser requests a route that doesn't exist there.
+// In dev, API_BASE is just "/api" (Vite-proxied, same origin), so this is a no-op.
+export const API_ORIGIN = API_BASE.replace(/\/api\/?$/, '')
 
 // Attach the JWT (also sent as HttpOnly cookie, this is the header fallback).
 api.interceptors.request.use((config) => {
