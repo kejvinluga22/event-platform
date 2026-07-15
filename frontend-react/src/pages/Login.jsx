@@ -62,7 +62,7 @@ export default function Login() {
               autoFocus
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              <input type="text" placeholder="">
+              placeholder=""
               required
             />
           </div>
