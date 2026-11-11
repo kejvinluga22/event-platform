@@ -222,3 +222,7 @@ html.force-mobile .public-card { max-width: none; min-height: 100vh; border: non
   box-shadow: none; padding: 28px 20px 36px; }
 html.force-mobile .public-title { font-size: 30px; }
 html.force-mobile .public-page .btn { width: 100%; }
+/* With the page zoomed, 100vh/100% heights get multiplied by the zoom and
+   leave a long empty area to scroll through — let the content set the height. */
+html.force-mobile, html.force-mobile body, html.force-mobile #root { height: auto; min-height: 0; }
+html.force-mobile .public-page, html.force-mobile .public-card { min-height: 0; }
