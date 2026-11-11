@@ -147,6 +147,12 @@ export default function EventsDashboard() {
     }
   }
 
+  // Number people per event: first registered = 1, no gaps after deletes.
+  // The list arrives newest-first, so the last item is No. 1.
+  const regNo = {}
+  ;(analytics?.recent_registrations || []).forEach((r, i, list) => { regNo[r.id] = list.length - i })
+  const numberOf = (id) => regNo[id]
+
   const publicLink = (slug) => `${window.location.origin}/e/${slug}`
   const scannerLink = (id) => `${window.location.origin}/events/${id}/scan`
 
@@ -344,6 +350,7 @@ export default function EventsDashboard() {
                     <table className="data">
                       <thead>
                         <tr>
+                          <th>No.</th>
                           <th>Attendee</th>
                           <th>Ticket</th>
                           <th>Status</th>
@@ -361,6 +368,7 @@ export default function EventsDashboard() {
                           })
                           .map((r) => (
                           <tr key={r.id}>
+                            <td className="muted">{numberOf(r.id)}</td>
                             <td>
                               <div style={{ fontWeight: 600 }}>{r.attendee_name}</div>
                               <div className="muted" style={{ fontSize: 12 }}>{r.attendee_email}</div>
