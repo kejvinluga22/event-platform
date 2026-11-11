@@ -71,7 +71,12 @@ final class XlsxWriter
             $col = 0;
             foreach ($row as $value) {
                 $ref = self::colLetter($col) . $rowNum;
-                if (is_numeric($value) && $value !== '' && !preg_match('/^0\d/', (string) $value)) {
+                // Numbers stay numeric, but phone-like strings ("+355...", "069...",
+                // long digit runs) are written as text so Excel doesn't turn them
+                // into 3.55E+11 or drop the leading zero.
+                $str = (string) $value;
+                $looksLikePhone = preg_match('/^\+|^0\d|^\d{9,}$|[eE]/', $str) === 1;
+                if (is_numeric($value) && $value !== '' && !$looksLikePhone) {
                     $sheet .= '<c r="' . $ref . '"><v>' . $value . '</v></c>';
                 } else {
                     $sheet .= '<c r="' . $ref . '" t="inlineStr"><is><t xml:space="preserve">'
