@@ -64,6 +64,7 @@ $routes = [
     ['GET',   '#^/events/stats$#',            fn ()        => (new EventController($db))->stats()],
     ['POST',  '#^/events$#',                  fn ()        => (new EventController($db))->store()],
     ['GET',   '#^/events/public/([\w-]+)$#',  fn ($slug)   => (new EventController($db))->publicShow($slug)],
+    ['GET',   '#^/events/slug/([\w-]+)$#',    fn ($slug)   => (new EventController($db))->showBySlug($slug)],
     ['GET',   '#^/events/(\d+)$#',            fn ($id)     => (new EventController($db))->show((int) $id)],
     ['PUT',   '#^/events/(\d+)$#',            fn ($id)     => (new EventController($db))->update((int) $id)],
     ['PATCH', '#^/events/(\d+)/status$#',     fn ($id)     => (new EventController($db))->setStatus((int) $id)],
