@@ -79,6 +79,7 @@ $routes = [
 
     ['POST',  '#^/register/([\w-]+)$#',       fn ($slug)   => (new RegistrationController($db))->register($slug)],
     ['POST',  '#^/registrations/(\d+)/resend$#', fn ($id)  => (new RegistrationController($db))->resendTicket((int) $id)],
+    ['DELETE','#^/registrations/(\d+)$#',     fn ($id)     => (new RegistrationController($db))->destroy((int) $id)],
     ['GET',   '#^/registrations/(\d+)/ticket\.pdf$#', fn ($id) => (new RegistrationController($db))->ticketPdf((int) $id)],
     ['GET',   '#^/registrations/(\d+)/badge$#', fn ($id)   => (new RegistrationController($db))->badge((int) $id)],
     ['GET',   '#^/registrations/(\d+)/certificate$#', fn ($id) => (new RegistrationController($db))->certificate((int) $id)],
