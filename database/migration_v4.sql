@@ -5,6 +5,7 @@
 --    • events.ask_ticket_type      ask attendee to pick a ticket type (VIP...)
 --    • events.ticket_type_options  comma-separated choices for that question
 --    • events.ask_age              show an "Age" field on the public form
+--    • events.show_price           show the price on the public page / ticket
 --    • registrations.attendee_age  the age the attendee entered
 --
 --  NOTE: the API applies these automatically on boot (SchemaUpgrade.php),
@@ -18,7 +19,8 @@ ALTER TABLE events
     ADD COLUMN IF NOT EXISTS issue_tickets       TINYINT(1)   NOT NULL DEFAULT 1,
     ADD COLUMN IF NOT EXISTS ask_ticket_type     TINYINT(1)   NOT NULL DEFAULT 1,
     ADD COLUMN IF NOT EXISTS ticket_type_options VARCHAR(500) NULL,
-    ADD COLUMN IF NOT EXISTS ask_age             TINYINT(1)   NOT NULL DEFAULT 0;
+    ADD COLUMN IF NOT EXISTS ask_age             TINYINT(1)   NOT NULL DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS show_price          TINYINT(1)   NOT NULL DEFAULT 1;
 
 ALTER TABLE registrations
     ADD COLUMN IF NOT EXISTS attendee_age SMALLINT UNSIGNED NULL AFTER phone;
