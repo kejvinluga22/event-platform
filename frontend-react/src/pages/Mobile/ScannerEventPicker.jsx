@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import api from '../../api/client'
 import { useAuth } from '../../contexts/AuthContext'
+import { formatEventTime } from '../../utils/eventTime'
 
 /**
  * ScannerEventPicker — the gate for scanner-role users. They cannot scan
@@ -111,7 +112,7 @@ export default function ScannerEventPicker() {
             <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 4 }}>{ev.title}</div>
             <div style={{ fontSize: 12, opacity: 0.7 }}>
               {ev.venue || 'No venue set'}
-              {ev.starts_at_utc ? ' · ' + new Date(ev.starts_at_utc.replace(' ', 'T') + 'Z').toLocaleString() : ''}
+              {ev.starts_at_utc ? ' · ' + formatEventTime(ev.starts_at_utc) : ''}
             </div>
             <div style={{ marginTop: 8 }}>
               <span className={`pill ${ev.status}`}>{ev.status}</span>
