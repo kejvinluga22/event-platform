@@ -94,7 +94,7 @@ export default function ScannerEventPicker() {
         {events.map((ev) => (
           <button
             key={ev.id}
-            onClick={() => navigate(`/events/${ev.id}/scan`)}
+            onClick={() => navigate(`/events/${ev.slug || ev.id}/scan`)}
             style={{
               textAlign: 'left',
               background: '#15181d',

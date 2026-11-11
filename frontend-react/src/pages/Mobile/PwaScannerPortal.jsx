@@ -26,8 +26,27 @@ import ErrorBoundary from '../../components/Common/ErrorBoundary'
 export default function PwaScannerPortal() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
-  const { id: eventIdParam } = useParams()
-  const eventId = eventIdParam ? parseInt(eventIdParam, 10) : null
+  // The link can use the event's name (/events/gala-night/scan) or its
+  // number (/events/12/scan, older links). Names are resolved to the id.
+  const { id: eventParam } = useParams()
+  const locked = Boolean(eventParam)
+  const numericId = /^\d+$/.test(eventParam || '') ? parseInt(eventParam, 10) : null
+  const cacheKey = `scanner.slug.${eventParam}`
+  const [eventId, setEventId] = useState(() => {
+    if (numericId) return numericId
+    try { return Number(localStorage.getItem(cacheKey)) || null } catch { return null }
+  })
+
+  useEffect(() => {
+    if (!eventParam || numericId) return
+    api.get(`/events/slug/${eventParam}`)
+      .then(({ data }) => {
+        const id = Number(data.data.event.id)
+        setEventId(id)
+        try { localStorage.setItem(cacheKey, String(id)) } catch { /* ignore */ }
+      })
+      .catch(() => { /* offline or unknown link: scanning still works, just not locked */ })
+  }, [eventParam, numericId, cacheKey])
 
   const [online, setOnline] = useState(navigator.onLine)
   const [paused, setPaused] = useState(false)
@@ -166,7 +185,7 @@ export default function PwaScannerPortal() {
     <div className="scanner">
       <div className="head">
         <div>
-          {eventId && eventInfo ? (
+          {locked && eventInfo ? (
             <>
               <div style={{ fontSize: 11, opacity: 0.5, letterSpacing: 1, textTransform: 'uppercase' }}>Scanner</div>
               <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 18 }}>
@@ -190,7 +209,7 @@ export default function PwaScannerPortal() {
           <span className={`net ${online ? 'online' : 'offline'}`}>
             {online ? 'Online' : `Offline · ${pending} queued`}
           </span>
-          {eventId && (
+          {locked && (
             <button className="btn ghost sm" onClick={() => navigate('/')} style={{ color: '#e8eaed', borderColor: '#2a2f36' }}>← Back</button>
           )}
           <button className="btn ghost sm" onClick={logout} style={{ color: '#e8eaed', borderColor: '#2a2f36' }}>Exit</button>
