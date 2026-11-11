@@ -844,19 +844,26 @@ final class RegistrationController
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Ticket · $event</title>
 <style>
+  *{box-sizing:border-box}
   body{margin:0;font-family:system-ui,Segoe UI,sans-serif;background:#0f1115;color:#e8eaed;
-       display:flex;min-height:100vh;align-items:center;justify-content:center;padding:24px}
-  .card{background:#fff;color:#111;border-radius:18px;max-width:360px;width:100%;
+       display:flex;min-height:100vh;align-items:center;justify-content:center;padding:32px 20px}
+  .card{background:#fff;color:#111;border-radius:22px;max-width:480px;width:100%;
         overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.4)}
-  .top{background:#EC2024;color:#fff;padding:20px 24px}
-  .top h1{margin:0;font-size:18px}
-  .top p{margin:4px 0 0;font-size:12px;opacity:.85}
-  .body{padding:24px;text-align:center}
-  .name{font-size:22px;font-weight:700;margin:0 0 4px}
+  .top{background:#EC2024;color:#fff;padding:26px 30px}
+  .top h1{margin:0;font-size:26px;line-height:1.2}
+  .top p{margin:6px 0 0;font-size:16px;opacity:.9}
+  .body{padding:30px;text-align:center}
+  .name{font-size:28px;font-weight:700;margin:0 0 10px}
   .tier{display:inline-block;background:#111;color:#fff;border-radius:999px;
-        padding:4px 14px;font-size:12px;text-transform:uppercase;letter-spacing:1px}
-  img{width:220px;height:220px;margin:18px 0}
-  .rid{font-size:12px;color:#888}
+        padding:6px 18px;font-size:14px;text-transform:uppercase;letter-spacing:1px}
+  img{width:300px;height:300px;max-width:100%;margin:22px 0 14px;image-rendering:pixelated}
+  .rid{font-size:15px;color:#777}
+  @media (max-width:600px){
+    body{padding:0;align-items:stretch;background:#fff}
+    .card{max-width:none;border-radius:0;box-shadow:none;min-height:100vh}
+    .top h1{font-size:24px}
+    img{width:82vw;height:82vw}
+  }
 </style></head><body>
   <div class="card">
     <div class="top"><h1>$event</h1><p>$venue</p></div>
