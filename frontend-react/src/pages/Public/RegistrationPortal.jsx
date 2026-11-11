@@ -3,12 +3,7 @@ import { useParams } from 'react-router-dom'
 import api, { API_ORIGIN } from '../../api/client'
 import Button from '../../components/Common/Button'
 import FormRenderer, { validateForm } from '../../components/FormBuilder/FormRenderer'
-
-// If the organizer already added their own phone field in the form builder,
-// don't show a second built-in one.
-const PHONE_RE = /phone|telefon|\btel\b|mobile|celular/i
-const hasCustomPhoneField = (schema = []) =>
-  schema.some((f) => f.type === 'tel' || PHONE_RE.test(f.name || '') || PHONE_RE.test(f.label || ''))
+import BasicFields, { basicSettings } from '../../components/FormBuilder/BasicFields'
 
 /**
  * RegistrationPortal — the public-facing attendee gateway. Loads a specific
@@ -102,11 +97,8 @@ export default function RegistrationPortal() {
     }
   }
 
-  const issueTickets = event ? (event.issue_tickets === undefined || event.issue_tickets === null ? true : !!Number(event.issue_tickets)) : true
-  const askTicketType = issueTickets && !!Number(event?.ask_ticket_type)
-  const ticketTypes = event?.ticket_types?.length ? event.ticket_types : ['General', 'VIP']
-  const askAge = !!Number(event?.ask_age)
-  const showPhone = !hasCustomPhoneField(event?.form_config || [])
+  const basic = basicSettings(event || {}, event?.form_config || [])
+  const { askTicketType, askAge, showPhone } = basic
 
   if (loading) return <div className="center-screen"><div className="spinner" /></div>
   if (error && !event) return <div className="center-screen"><div className="error">{error}</div></div>
@@ -180,71 +172,16 @@ export default function RegistrationPortal() {
         </div>
 
         <form onSubmit={submit}>
-          <div className="field">
-            <label htmlFor="attendee_name">Your full name <span style={{ color: 'var(--red)' }}>*</span></label>
-            <input
-              id="attendee_name"
-              autoFocus
-              value={attendeeName}
-              onChange={(e) => setAttendeeName(e.target.value)}
-              placeholder="First name — Last name"
-            />
-            {errors.attendee_name && <span className="error">{errors.attendee_name}</span>}
-          </div>
-
-          <div className="field">
-            <label htmlFor="attendee_email">Email <span style={{ color: 'var(--red)' }}>*</span></label>
-            <input
-              id="attendee_email"
-              type="email"
-              value={attendeeEmail}
-              onChange={(e) => setAttendeeEmail(e.target.value)}
-              placeholder="jane@example.com"
-            />
-            {errors.attendee_email && <span className="error">{errors.attendee_email}</span>}
-          </div>
-
-          {showPhone && (
-            <div className="field">
-              <label htmlFor="attendee_phone">Phone number</label>
-              <input
-                id="attendee_phone"
-                type="tel"
-                value={attendeePhone}
-                onChange={(e) => setAttendeePhone(e.target.value)}
-                placeholder="+355 69 123 4567"
-                maxLength={40}
-              />
-              {errors.phone && <span className="error">{errors.phone}</span>}
-            </div>
-          )}
-
-          {askAge && (
-            <div className="field">
-              <label htmlFor="attendee_age">Age <span style={{ color: 'var(--red)' }}>*</span></label>
-              <input
-                id="attendee_age"
-                type="number"
-                min={1}
-                max={120}
-                value={attendeeAge}
-                onChange={(e) => setAttendeeAge(e.target.value)}
-                placeholder="e.g. 25"
-              />
-              {errors.attendee_age && <span className="error">{errors.attendee_age}</span>}
-            </div>
-          )}
-
-          {askTicketType && (
-            <div className="field">
-              <label htmlFor="access_level">Ticket type <span style={{ color: 'var(--red)' }}>*</span></label>
-              <select id="access_level" value={accessLevel} onChange={(e) => setAccessLevel(e.target.value)}>
-                <option value="">Select…</option>
-                {ticketTypes.map((t) => <option key={t} value={t}>{t}</option>)}
-              </select>
-              {errors.access_level && <span className="error">{errors.access_level}</span>}
-            </div>
-          )}
+          <BasicFields
+            autoFocus
+            settings={basic}
+            values={{ name: attendeeName, email: attendeeEmail, phone: attendeePhone, age: attendeeAge, ticket: accessLevel }}
+            onChange={(k, v) => ({
+              name: setAttendeeName, email: setAttendeeEmail, phone: setAttendeePhone,
+              age: setAttendeeAge, ticket: setAccessLevel,
+            })[k](v)}
+            errors={errors}
+          />
 
           {event?.form_config?.length > 0 && (
             <>
