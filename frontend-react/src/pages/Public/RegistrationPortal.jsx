@@ -4,6 +4,12 @@ import api, { API_ORIGIN } from '../../api/client'
 import Button from '../../components/Common/Button'
 import FormRenderer, { validateForm } from '../../components/FormBuilder/FormRenderer'
 
+// If the organizer already added their own phone field in the form builder,
+// don't show a second built-in one.
+const PHONE_RE = /phone|telefon|\btel\b|mobile|celular/i
+const hasCustomPhoneField = (schema = []) =>
+  schema.some((f) => f.type === 'tel' || PHONE_RE.test(f.name || '') || PHONE_RE.test(f.label || ''))
+
 /**
  * RegistrationPortal — the public-facing attendee gateway. Loads a specific
  * event by its slug (no auth required), renders its schema-driven form, and
@@ -19,7 +25,9 @@ export default function RegistrationPortal() {
 
   const [attendeeName, setAttendeeName] = useState('')
   const [attendeeEmail, setAttendeeEmail] = useState('')
-  const [accessLevel, setAccessLevel] = useState('general')
+  const [attendeePhone, setAttendeePhone] = useState('')
+  const [attendeeAge, setAttendeeAge] = useState('')
+  const [accessLevel, setAccessLevel] = useState('')
   const [formData, setFormData] = useState({})
   const [errors, setErrors] = useState({})
 
@@ -52,6 +60,16 @@ export default function RegistrationPortal() {
       newErrors.attendee_email = 'Valid email is required'
     }
 
+    if (askTicketType && !accessLevel) newErrors.access_level = 'Please choose an option'
+    if (askAge) {
+      const n = Number(attendeeAge)
+      if (!attendeeAge || !Number.isInteger(n) || n < 1 || n > 120) {
+        newErrors.attendee_age = 'Please enter a valid age'
+      } else if (Number(event.minimum_age) > 0 && n < Number(event.minimum_age)) {
+        newErrors.attendee_age = `You must be at least ${event.minimum_age} years old`
+      }
+    }
+
     // Validate dynamic schema.
     const schemaErrors = validateForm(event.form_config || [], formData)
     Object.assign(newErrors, schemaErrors)
@@ -66,7 +84,9 @@ export default function RegistrationPortal() {
       const { data } = await api.post(`/register/${slug}`, {
         attendee_name: attendeeName.trim(),
         attendee_email: attendeeEmail.trim(),
-        access_level: accessLevel,
+        phone: showPhone ? attendeePhone.trim() : '',
+        attendee_age: askAge ? attendeeAge : '',
+        access_level: askTicketType ? accessLevel : 'general',
         form_data: formData,
       })
       setSuccess(data.data)
@@ -82,6 +102,12 @@ export default function RegistrationPortal() {
     }
   }
 
+  const issueTickets = event ? (event.issue_tickets === undefined || event.issue_tickets === null ? true : !!Number(event.issue_tickets)) : true
+  const askTicketType = issueTickets && !!Number(event?.ask_ticket_type)
+  const ticketTypes = event?.ticket_types?.length ? event.ticket_types : ['General', 'VIP']
+  const askAge = !!Number(event?.ask_age)
+  const showPhone = !hasCustomPhoneField(event?.form_config || [])
+
   if (loading) return <div className="center-screen"><div className="spinner" /></div>
   if (error && !event) return <div className="center-screen"><div className="error">{error}</div></div>
 
@@ -94,7 +120,11 @@ export default function RegistrationPortal() {
             You're registered!
           </h2>
           <p className="muted" style={{ marginBottom: 18 }}>
-            Check your email for your e-ticket PDF with your entry QR code.
+            {success.issue_tickets === false
+              ? 'Your registration is confirmed. We sent a confirmation to your email.'
+              : success.status === 'waitlisted'
+                ? 'The event is full — you have been added to the waitlist.'
+                : 'Check your email for your e-ticket PDF with your entry QR code.'}
           </p>
           <div className="row" style={{ gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
             {success.pdf_url && (
@@ -174,15 +204,47 @@ export default function RegistrationPortal() {
             {errors.attendee_email && <span className="error">{errors.attendee_email}</span>}
           </div>
 
-          <div className="field">
-            <label htmlFor="access_level">Ticket type</label>
-            <select id="access_level" value={accessLevel} onChange={(e) => setAccessLevel(e.target.value)}>
-              <option value="general">General admission</option>
-              <option value="vip">VIP</option>
-              <option value="speaker">Speaker</option>
-              <option value="staff">Staff</option>
-            </select>
-          </div>
+          {showPhone && (
+            <div className="field">
+              <label htmlFor="attendee_phone">Phone number</label>
+              <input
+                id="attendee_phone"
+                type="tel"
+                value={attendeePhone}
+                onChange={(e) => setAttendeePhone(e.target.value)}
+                placeholder="+355 69 123 4567"
+                maxLength={40}
+              />
+              {errors.phone && <span className="error">{errors.phone}</span>}
+            </div>
+          )}
+
+          {askAge && (
+            <div className="field">
+              <label htmlFor="attendee_age">Age <span style={{ color: 'var(--red)' }}>*</span></label>
+              <input
+                id="attendee_age"
+                type="number"
+                min={1}
+                max={120}
+                value={attendeeAge}
+                onChange={(e) => setAttendeeAge(e.target.value)}
+                placeholder="e.g. 25"
+              />
+              {errors.attendee_age && <span className="error">{errors.attendee_age}</span>}
+            </div>
+          )}
+
+          {askTicketType && (
+            <div className="field">
+              <label htmlFor="access_level">Ticket type <span style={{ color: 'var(--red)' }}>*</span></label>
+              <select id="access_level" value={accessLevel} onChange={(e) => setAccessLevel(e.target.value)}>
+                <option value="">Select…</option>
+                {ticketTypes.map((t) => <option key={t} value={t}>{t}</option>)}
+              </select>
+              {errors.access_level && <span className="error">{errors.access_level}</span>}
+            </div>
+          )}
 
           {event?.form_config?.length > 0 && (
             <>
