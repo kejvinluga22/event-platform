@@ -154,7 +154,14 @@ export default function EventsDashboard() {
   const numberOf = (id) => regNo[id]
 
   const publicLink = (slug) => `${window.location.origin}/e/${slug}`
-  const scannerLink = (id) => `${window.location.origin}/events/${id}/scan`
+  const scannerLink = (ev) => `${window.location.origin}/events/${ev.slug || ev.id}/scan`
+  // "Gala Night" -> "Gala-Night-registrations.xlsx"
+  const exportName = (ev, ext) => {
+    const base = String(ev.title || '')
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^A-Za-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60)
+    return `${base || `Event-${ev.id}`}-registrations.${ext}`
+  }
 
   const copyShareLink = async (ev) => {
     const url = publicLink(ev.slug)
@@ -167,7 +174,7 @@ export default function EventsDashboard() {
   }
 
   const copyScannerLink = async (ev) => {
-    const url = scannerLink(ev.id)
+    const url = scannerLink(ev)
     try {
       await navigator.clipboard.writeText(url)
       flash('Scanner link copied — share with your staff')
@@ -280,7 +287,7 @@ export default function EventsDashboard() {
                       </button>
                     )}
 
-                    <button className="btn ghost sm" onClick={() => navigate(`/events/${ev.id}/scan`)} title="Open this event's scanner">
+                    <button className="btn ghost sm" onClick={() => navigate(`/events/${ev.slug || ev.id}/scan`)} title="Open this event's scanner">
                       📷 Scan
                     </button>
                     <button className="btn ghost sm" onClick={() => copyScannerLink(ev)} title="Copy scanner link for staff">
@@ -308,9 +315,9 @@ export default function EventsDashboard() {
                         >🗑</button>
                       </>
                     )}
-                    <button type="button" className="btn ghost sm" onClick={() => downloadFile(`/events/${ev.id}/export`, `registrations_event_${ev.id}.csv`)}>CSV</button>
-                    <button type="button" className="btn ghost sm" onClick={() => downloadFile(`/events/${ev.id}/export/xlsx`, `registrations_event_${ev.id}.xlsx`)}>Excel</button>
-                    <button type="button" className="btn ghost sm" onClick={() => downloadFile(`/events/${ev.id}/export/pdf`, `registrations_event_${ev.id}.pdf`)}>PDF</button>
+                    <button type="button" className="btn ghost sm" onClick={() => downloadFile(`/events/${ev.id}/export`, exportName(ev, 'csv'))}>CSV</button>
+                    <button type="button" className="btn ghost sm" onClick={() => downloadFile(`/events/${ev.id}/export/xlsx`, exportName(ev, 'xlsx'))}>Excel</button>
+                    <button type="button" className="btn ghost sm" onClick={() => downloadFile(`/events/${ev.id}/export/pdf`, exportName(ev, 'pdf'))}>PDF</button>
                   </div>
                 </td>
               </tr>

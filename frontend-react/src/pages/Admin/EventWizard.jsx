@@ -71,6 +71,18 @@ export default function EventWizard() {
 
   const setField = (k, v) => setEvent((prev) => ({ ...prev, [k]: v }))
 
+  // Event link (/e/<name>). For a new event it follows the title until the
+  // organizer types their own; when editing it only changes on request.
+  const [slugTouched, setSlugTouched] = useState(false)
+  const slugify = (s) => String(s || '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 80)
+  const setTitle = (v) => setEvent((prev) => ({
+    ...prev,
+    title: v,
+    slug: !editing && !slugTouched ? slugify(v) : prev.slug,
+  }))
+
   // ---- dynamic form builder helpers ----
   const addField = () => setFields((f) => [
     ...f,
@@ -140,12 +152,30 @@ export default function EventWizard() {
           <>
             <div className="field">
               <label>Event title <span style={{ color: 'var(--red)' }}>*</span></label>
-              <input value={event.title} onChange={(e) => setField('title', e.target.value)} placeholder="Tech Summit 2026" />
-              {editing && event.slug && (
-                <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
-                  Public URL: <code>/e/{event.slug}</code>
-                </div>
-              )}
+              <input value={event.title} onChange={(e) => setTitle(e.target.value)} placeholder="Tech Summit 2026" />
+            </div>
+            <div className="field">
+              <label>Event link</label>
+              <div className="row" style={{ gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                <code className="muted" style={{ whiteSpace: 'nowrap' }}>{window.location.origin}/e/</code>
+                <input
+                  style={{ flex: 1, minWidth: 160 }}
+                  value={event.slug}
+                  onChange={(e) => { setSlugTouched(true); setField('slug', slugify(e.target.value)) }}
+                  placeholder="tech-summit-2026"
+                />
+                {event.title && slugify(event.title) !== event.slug && (
+                  <button type="button" className="btn ghost sm" style={{ whiteSpace: 'nowrap' }}
+                    onClick={() => { setSlugTouched(true); setField('slug', slugify(event.title)) }}>
+                    Use title
+                  </button>
+                )}
+              </div>
+              <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
+                {editing
+                  ? 'If you change the link, the old link will stop working — share the new one.'
+                  : 'Made from the event title. You can change it.'}
+              </div>
             </div>
             <div className="field">
               <label>Description</label>
