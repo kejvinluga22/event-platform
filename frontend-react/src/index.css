@@ -185,3 +185,31 @@ table.data tr:hover td { background: var(--bg); }
   .cols-2 { grid-template-columns: 1fr; }
   .sidebar { display: none; }
 }
+
+/* ---------- Public registration page (bigger, easier to read) ---------- */
+.public-page { padding: 40px 20px; }
+.public-card { width: 100%; max-width: 680px; padding: 40px 44px; border-radius: 22px;
+  box-shadow: 0 10px 40px rgba(16, 24, 40, .08); }
+.public-title { font-family: var(--font-display); font-size: 36px; line-height: 1.15;
+  font-weight: 800; margin: 0 0 8px; }
+.public-venue { font-size: 17px; }
+.public-desc { margin-top: 16px; font-size: 17px; line-height: 1.6; color: var(--ink-2); white-space: pre-line; }
+.public-page .pill { font-size: 14px; padding: 6px 14px; background: #eef0f3; color: var(--ink-2); }
+.public-page .field { gap: 8px; margin-bottom: 20px; }
+.public-page .field label { font-size: 15px; }
+.public-page .field input, .public-page .field select, .public-page .field textarea {
+  font-size: 17px; padding: 14px 16px; border-radius: 12px; }
+.public-page .field .error { font-size: 14px; }
+.public-page .muted { font-size: 16px; }
+.public-page .btn { font-size: 17px; padding: 15px 24px; border-radius: 12px; }
+.public-page p { font-size: 17px; }
+
+@media (max-width: 600px) {
+  .public-page { padding: 0; place-items: start stretch; background: var(--surface); }
+  .public-card { max-width: none; min-height: 100vh; border: none; border-radius: 0;
+    box-shadow: none; padding: 28px 20px 36px; }
+  .public-title { font-size: 30px; }
+  /* 16px+ inputs stop iPhones from auto-zooming when a field is tapped */
+  .public-page .field input, .public-page .field select, .public-page .field textarea { font-size: 17px; }
+  .public-page .btn { width: 100%; }
+}
