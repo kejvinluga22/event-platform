@@ -30,6 +30,31 @@ export default function RegistrationPortal() {
   const [submitting, setSubmitting] = useState(false)
   const [success, setSuccess] = useState(null) // { registration_id, ticket_url }
 
+  // Some phones open pages in "desktop site" mode (980px wide, shrunk to fit),
+  // which makes this form tiny. Detect a touch phone whose layout is much wider
+  // than its screen and zoom the page back to the phone's real width.
+  useEffect(() => {
+    const root = document.documentElement
+    const fit = () => {
+      const phone = window.matchMedia('(pointer: coarse)').matches && window.screen.width < 700
+      const ratio = window.innerWidth / window.screen.width
+      if (phone && ratio > 1.3) {
+        root.classList.add('force-mobile')
+        root.style.zoom = String(ratio)
+      } else {
+        root.classList.remove('force-mobile')
+        root.style.zoom = ''
+      }
+    }
+    fit()
+    window.addEventListener('orientationchange', fit)
+    return () => {
+      window.removeEventListener('orientationchange', fit)
+      root.classList.remove('force-mobile')
+      root.style.zoom = ''
+    }
+  }, [])
+
   useEffect(() => {
     const load = async () => {
       try {
