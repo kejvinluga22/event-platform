@@ -647,7 +647,7 @@ final class RegistrationController
                        WHERE a.registration_id = r.id AND a.scan_result = "success") AS checkin_time
              FROM registrations r
              WHERE r.event_id = :e
-             ORDER BY r.created_at'
+             ORDER BY r.created_at, r.id'
         );
         $stmt->execute([':e' => $eventId]);
         $records = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -671,7 +671,9 @@ final class RegistrationController
             }
         }
 
-        $headers = ['ID', 'First Name', 'Last Name', 'Email', 'Phone'];
+        // "No." is the person's position in this event (1, 2, 3...), so every
+        // event starts at 1 and there are no gaps after someone is deleted.
+        $headers = ['No.', 'First Name', 'Last Name', 'Email', 'Phone'];
         if ($showAge) {
             $headers[] = 'Age';
         }
@@ -684,7 +686,9 @@ final class RegistrationController
         }
 
         $rows = [];
+        $no = 0;
         foreach ($records as $row) {
+            $no++;
             $first = $row['first_name'];
             $last  = $row['last_name'];
             // Fall back to splitting the combined name if first/last empty (older rows).
@@ -700,7 +704,7 @@ final class RegistrationController
                 $phone = $this->phoneFromForm($schema, $form);
             }
 
-            $line = [$row['id'], $first ?? '', $last ?? '', $row['attendee_email'], $phone];
+            $line = [$no, $first ?? '', $last ?? '', $row['attendee_email'], $phone];
             if ($showAge) {
                 $line[] = $row['attendee_age'] ?? '';
             }

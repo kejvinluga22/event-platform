@@ -440,7 +440,7 @@ final class EventController
                     source, created_at
              FROM registrations
              WHERE event_id = :e
-             ORDER BY created_at DESC
+             ORDER BY created_at DESC, id DESC
              LIMIT 2000"
         );
         $recent->execute([':e' => $id]);
