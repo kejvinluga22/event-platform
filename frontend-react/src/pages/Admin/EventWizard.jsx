@@ -16,6 +16,7 @@ const emptyEvent = {
   ask_ticket_type: false,     // ask guests to pick VIP / General / ...
   ticket_type_options: 'General, VIP',
   ask_age: false,             // show an Age field on the public form
+  show_price: true,           // show price on the public page + ticket
   status: 'draft',
 }
 
@@ -55,6 +56,7 @@ export default function EventWizard() {
         ask_ticket_type: !!Number(e.ask_ticket_type),
         ticket_type_options: e.ticket_type_options || 'General, VIP',
         ask_age: !!Number(e.ask_age),
+        show_price: e.show_price === undefined || e.show_price === null ? true : !!Number(e.show_price),
         status: e.status || 'draft',
       })
       setFields(Array.isArray(e.form_config) ? e.form_config : [])
@@ -255,6 +257,11 @@ export default function EventWizard() {
               </div>
             </div>
 
+            <label className="row" style={{ gap: 8, cursor: 'pointer', marginBottom: 14 }}>
+              <input type="checkbox" checked={event.show_price} onChange={(e) => setField('show_price', e.target.checked)} />
+              <span>Show the price to guests (registration page{event.issue_tickets ? ' and ticket' : ''})</span>
+            </label>
+
             <div className="grid cols-2">
               <div className="field">
                 <label>Minimum age (0 = no limit)</label>
@@ -383,7 +390,7 @@ export default function EventWizard() {
                 <tr><th>Venue</th><td>{event.venue || '—'}</td></tr>
                 <tr><th>Schedule</th><td>{event.starts_at_utc || '—'} → {event.ends_at_utc || '—'} ({event.timezone})</td></tr>
                 <tr><th>Capacity</th><td>{event.capacity} {event.waitlist_enabled ? '(waitlist on)' : ''}</td></tr>
-                <tr><th>Price</th><td>{event.price === '' || Number(event.price) === 0 ? 'FREE' : `${event.price} ${event.currency}`}</td></tr>
+                <tr><th>Price</th><td>{event.price === '' || Number(event.price) === 0 ? 'FREE' : `${event.price} ${event.currency}`}{event.show_price ? '' : ' (hidden from guests)'}</td></tr>
                 <tr><th>Minimum age</th><td>{Number(event.minimum_age) > 0 ? `${event.minimum_age}+` : 'No limit'}</td></tr>
                 <tr><th>Organizer</th><td>{event.organizer_name || '—'}</td></tr>
                 <tr><th>Guests receive</th><td>{event.issue_tickets ? 'Ticket (PDF + QR)' : 'Registration only — no ticket'}</td></tr>

@@ -40,6 +40,7 @@ export default function EventsDashboard() {
   const [tab, setTab] = useState('all')
   const [query, setQuery] = useState('')
   const [toast, setToast] = useState('')
+  const [regQuery, setRegQuery] = useState('')
 
   const flash = (msg) => {
     setToast(msg)
@@ -66,6 +67,7 @@ export default function EventsDashboard() {
 
   const openAnalytics = async (ev) => {
     setSelected(ev)
+    setRegQuery('')
     setAnalytics(null)
     try {
       const { data } = await api.get(`/events/${ev.id}/analytics`)
@@ -120,6 +122,26 @@ export default function EventsDashboard() {
       flash('Ticket queued for resend')
     } catch (err) {
       alert(err?.response?.data?.error || 'Resend failed')
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  const deleteRegistration = async (r) => {
+    const checkedIn = r.checkin_status === 'CheckedIn'
+    if (!confirm(
+      `Delete ${r.attendee_name} (${r.attendee_email})?` +
+      (checkedIn ? '\n\nThis person is already CHECKED IN.' : '') +
+      '\n\nThis permanently removes the registration and its check-in history. It cannot be undone.'
+    )) return
+    setBusyId(`r${r.id}`)
+    try {
+      await api.delete(`/registrations/${r.id}`)
+      flash('Registration deleted')
+      if (selected) await openAnalytics(selected)
+      load()
+    } catch (err) {
+      alert(err?.response?.data?.error || 'Delete failed')
     } finally {
       setBusyId(null)
     }
@@ -305,7 +327,17 @@ export default function EventsDashboard() {
 
               {analytics.recent_registrations && (
                 <div style={{ marginTop: 26 }}>
-                  <h3 style={{ fontSize: 16, marginBottom: 12 }}>Recent registrations</h3>
+                  <div className="row between" style={{ marginBottom: 12, gap: 10, flexWrap: 'wrap' }}>
+                    <h3 style={{ fontSize: 16 }}>Registrations ({analytics.recent_registrations.length})</h3>
+                    {analytics.recent_registrations.length > 0 && (
+                      <input
+                        style={{ maxWidth: 260 }}
+                        value={regQuery}
+                        onChange={(e) => setRegQuery(e.target.value)}
+                        placeholder="Search name, email or phone…"
+                      />
+                    )}
+                  </div>
                   {analytics.recent_registrations.length === 0 ? (
                     <div className="muted" style={{ padding: 18, textAlign: 'center' }}>No registrations yet.</div>
                   ) : (
@@ -320,7 +352,14 @@ export default function EventsDashboard() {
                         </tr>
                       </thead>
                       <tbody>
-                        {analytics.recent_registrations.map((r) => (
+                        {analytics.recent_registrations
+                          .filter((r) => {
+                            const q = regQuery.trim().toLowerCase()
+                            if (!q) return true
+                            return [r.attendee_name, r.attendee_email, r.phone]
+                              .some((v) => String(v || '').toLowerCase().includes(q))
+                          })
+                          .map((r) => (
                           <tr key={r.id}>
                             <td>
                               <div style={{ fontWeight: 600 }}>{r.attendee_name}</div>
@@ -341,6 +380,16 @@ export default function EventsDashboard() {
                                     onClick={() => resendTicket(r.id)}
                                     disabled={busyId === `r${r.id}`}
                                   >Resend</button>
+                                )}
+                                {isAdmin() && (
+                                  <button
+                                    type="button"
+                                    className="btn ghost sm"
+                                    style={{ color: 'var(--red)' }}
+                                    onClick={() => deleteRegistration(r)}
+                                    disabled={busyId === `r${r.id}`}
+                                    title="Delete this person"
+                                  >Delete</button>
                                 )}
                               </div>
                             </td>
