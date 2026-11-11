@@ -337,7 +337,7 @@ final class RegistrationController
         [$headers, $rows] = $this->reportData($eventId);
 
         header('Content-Type: text/csv; charset=utf-8');
-        header('Content-Disposition: attachment; filename="registrations_event_' . $eventId . '.csv"');
+        header('Content-Disposition: attachment; filename="' . $this->exportFilename($eventId, 'csv') . '"');
         $out = fopen('php://output', 'w');
         fwrite($out, "\xEF\xBB\xBF"); // UTF-8 BOM so Excel shows ë, ç, etc. correctly
         fputcsv($out, $headers);
@@ -370,7 +370,7 @@ final class RegistrationController
         $allRows = array_merge($summaryRows, [$headers], $rows);
         // headers are already inside allRows now; pass empty first arg so writer
         // doesn't add a second header row.
-        XlsxWriter::stream('registrations_event_' . $eventId . '.xlsx', [], $allRows);
+        XlsxWriter::stream($this->exportFilename($eventId, 'xlsx'), [], $allRows);
     }
 
     /** GET /events/{id}/export/pdf — registrations as a formatted PDF report */
@@ -383,7 +383,7 @@ final class RegistrationController
 
         $bin = PdfService::renderReport($title, $headers, $rows, $sum);
         header('Content-Type: application/pdf');
-        header('Content-Disposition: attachment; filename="registrations_event_' . $eventId . '.pdf"');
+        header('Content-Disposition: attachment; filename="' . $this->exportFilename($eventId, 'pdf') . '"');
         echo $bin;
         exit;
     }
@@ -524,6 +524,16 @@ final class RegistrationController
         // Cap length so we don't generate filesystem-hostile names.
         $clean = substr($clean, 0, 60);
         return $clean . '-Ticket.pdf';
+    }
+
+    /** e.g. "Gala-Night-registrations.xlsx" instead of "registrations_event_3.xlsx". */
+    private function exportFilename(int $eventId, string $ext): string
+    {
+        $title = html_entity_decode((string) ($this->eventTitle($eventId) ?? ''), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $clean = (string) @iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $title);
+        $clean = trim((string) preg_replace('/[^A-Za-z0-9]+/', '-', $clean), '-');
+        $clean = substr($clean !== '' ? $clean : 'Event-' . $eventId, 0, 60);
+        return $clean . '-registrations.' . $ext;
     }
 
     /** Deterministic GoWild-style order number, e.g. GW0A1928810636. */

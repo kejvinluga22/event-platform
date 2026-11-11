@@ -184,6 +184,19 @@ final class EventController
         Response::ok(['event' => $event]);
     }
 
+    /** GET /events/slug/{slug} — staff lookup so scanner links can use the event name */
+    public function showBySlug(string $slug): void
+    {
+        AuthMiddleware::authenticate();
+        $stmt = $this->db->prepare('SELECT id FROM events WHERE slug = :s AND deleted_at IS NULL LIMIT 1');
+        $stmt->execute([':s' => $slug]);
+        $id = $stmt->fetchColumn();
+        if ($id === false) {
+            Response::error('Event not found', 404);
+        }
+        $this->show((int) $id);
+    }
+
     /** GET /events/public/{slug} — no auth, used by the public portal */
     public function publicShow(string $slug): void
     {
@@ -225,7 +238,7 @@ final class EventController
         if (trim($title) === '') {
             Response::error('Title is required', 422);
         }
-        $slug = $this->uniqueSlug($b['slug'] ?? $title);
+        $slug = $this->uniqueSlug(trim((string) ($b['slug'] ?? '')) !== '' ? $b['slug'] : $title);
 
         $stmt = $this->db->prepare(
             'INSERT INTO events
@@ -257,7 +270,7 @@ final class EventController
             ':esub'   => Request::clean($b['email_subject'] ?? '') ?: null,
             ':wait'   => !empty($b['waitlist_enabled']) ? 1 : 0,
             ':brand'  => isset($b['branding']) ? json_encode($b['branding']) : null,
-            ':status' => in_array($b['status'] ?? 'draft', self::STATUSES, true) ? $b['status'] : 'draft',
+            ':status' => in_array($b['status'] ?? 'draft', self::STATUSES, true) ? ($b['status'] ?? 'draft') : 'draft',
             ':issue'  => array_key_exists('issue_tickets', $b) ? (empty($b['issue_tickets']) ? 0 : 1) : 1,
             ':askt'   => !empty($b['ask_ticket_type']) ? 1 : 0,
             ':topts'  => self::normalizeOptions($b['ticket_type_options'] ?? null),
@@ -310,6 +323,11 @@ final class EventController
                 }
             }
         }
+        // Event link (/e/<slug>) can be renamed from the editor.
+        if (isset($b['slug']) && trim((string) $b['slug']) !== '' && $b['slug'] !== $event['slug']) {
+            $sets[] = 'slug = :slug';
+            $params[':slug'] = $this->uniqueSlug((string) $b['slug'], $id);
+        }
         if (isset($b['branding'])) {
             $sets[] = 'branding_json = :brand';
             $params[':brand'] = json_encode($b['branding']);
@@ -324,7 +342,9 @@ final class EventController
         }
 
         AuditLogger::log($this->db, (int) $claims['sub'], 'event.update', 'event', $id);
-        Response::ok([], 'Event updated');
+        $slugNow = $this->db->prepare('SELECT slug FROM events WHERE id = :id');
+        $slugNow->execute([':id' => $id]);
+        Response::ok(['slug' => $slugNow->fetchColumn()], 'Event updated');
     }
 
     /** PATCH /events/{id}/status  — drive the lifecycle state machine */
@@ -537,16 +557,28 @@ final class EventController
         }
     }
 
-    private function uniqueSlug(string $base): string
+    /**
+     * Turns an event title into a link-friendly name, e.g.
+     * "Festa e Diplomimit 2026" -> "festa-e-diplomimit-2026" (accents removed),
+     * and adds -2, -3... only if another event already uses it.
+     */
+    private function uniqueSlug(string $base, ?int $exceptId = null): string
     {
+        $base = html_entity_decode($base, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $ascii = @iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $base);
+        if ($ascii !== false && $ascii !== '') {
+            $base = $ascii;
+        }
         $slug = preg_replace('/[^a-z0-9]+/', '-', strtolower(trim($base)));
+        $slug = substr(trim((string) $slug, '-'), 0, 80);
         $slug = trim($slug, '-') ?: 'event';
         $candidate = $slug;
         $i = 1;
         while (true) {
-            $s = $this->db->prepare('SELECT 1 FROM events WHERE slug = :s LIMIT 1');
+            $s = $this->db->prepare('SELECT id FROM events WHERE slug = :s LIMIT 1');
             $s->execute([':s' => $candidate]);
-            if (!$s->fetch()) {
+            $owner = $s->fetchColumn();
+            if ($owner === false || ($exceptId !== null && (int) $owner === $exceptId)) {
                 return $candidate;
             }
             $candidate = $slug . '-' . (++$i);
