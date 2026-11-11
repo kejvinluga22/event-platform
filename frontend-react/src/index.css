@@ -213,3 +213,12 @@ table.data tr:hover td { background: var(--bg); }
   .public-page .field input, .public-page .field select, .public-page .field textarea { font-size: 17px; }
   .public-page .btn { width: 100%; }
 }
+
+/* Phones showing the "desktop site" (Chrome's Desktop site mode lays the page
+   out 980px wide and shrinks it). RegistrationPortal adds .force-mobile and
+   zooms the page back to the phone's real width; these mirror the rules above. */
+html.force-mobile .public-page { padding: 0; place-items: start stretch; background: var(--surface); }
+html.force-mobile .public-card { max-width: none; min-height: 100vh; border: none; border-radius: 0;
+  box-shadow: none; padding: 28px 20px 36px; }
+html.force-mobile .public-title { font-size: 30px; }
+html.force-mobile .public-page .btn { width: 100%; }
