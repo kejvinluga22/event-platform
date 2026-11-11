@@ -884,8 +884,9 @@ final class RegistrationController
       document.body.style.padding = '0';
       document.body.style.alignItems = 'stretch';
       document.body.style.background = '#fff';
+      document.body.style.minHeight = '0';
       var c = document.querySelector('.card');
-      c.style.maxWidth = 'none'; c.style.borderRadius = '0'; c.style.boxShadow = 'none';
+      c.style.maxWidth = 'none'; c.style.borderRadius = '0'; c.style.boxShadow = 'none'; c.style.minHeight = '0';
       document.querySelector('.card img').style.width = document.querySelector('.card img').style.height = Math.round(screen.width * 0.82) + 'px';
     }
   })();
