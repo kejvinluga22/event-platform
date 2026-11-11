@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import api from '../../api/client'
 import Button from '../../components/Common/Button'
 import FormRenderer from '../../components/FormBuilder/FormRenderer'
+import BasicFields, { basicSettings } from '../../components/FormBuilder/BasicFields'
 
 const STEPS = ['Details', 'Schedule & Capacity', 'Registration Form', 'Review']
 const FIELD_TYPES = ['text', 'email', 'tel', 'number', 'textarea', 'select', 'radio', 'checkbox', 'file']
@@ -34,6 +35,7 @@ export default function EventWizard() {
   const [event, setEvent] = useState(emptyEvent)
   const [fields, setFields] = useState([])
   const [preview, setPreview] = useState({})
+  const [basicPreview, setBasicPreview] = useState({ name: '', email: '', phone: '', age: '', ticket: '' })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(editing)
@@ -70,6 +72,7 @@ export default function EventWizard() {
   useEffect(() => { load() }, [load])
 
   const setField = (k, v) => setEvent((prev) => ({ ...prev, [k]: v }))
+  const hasPhoneField = !basicSettings(event, fields).showPhone
 
   // Event link (/e/<name>). For a new event it follows the title until the
   // organizer types their own; when editing it only changes on request.
@@ -334,7 +337,7 @@ export default function EventWizard() {
               <h3>Registration form fields</h3>
               <button className="btn ghost sm" onClick={addField}>+ Add field</button>
             </div>
-            {fields.length === 0 && <div className="muted">No custom fields. Attendees still provide name and email.</div>}
+            {fields.length === 0 && <div className="muted">No extra fields yet. Guests still fill in the basic fields shown in the preview below.</div>}
             {fields.map((f, i) => (
               <div key={i} className="card" style={{ background: 'var(--bg)', marginBottom: 12 }}>
                 <div className="grid cols-2">
@@ -401,12 +404,38 @@ export default function EventWizard() {
                 </div>
               </div>
             ))}
-            {fields.length > 0 && (
-              <div className="card" style={{ marginTop: 14 }}>
-                <h3 style={{ marginBottom: 12 }}>Live preview</h3>
-                <FormRenderer schema={fields} value={preview} onChange={setPreview} />
+            <div className="card" style={{ marginTop: 14 }}>
+              <h3 style={{ marginBottom: 4 }}>Live preview</h3>
+              <div className="muted" style={{ fontSize: 13, marginBottom: 16 }}>
+                This is the full form guests will see on the registration page.
               </div>
-            )}
+
+              <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 4 }}>
+                Basic fields
+              </div>
+              <div className="muted" style={{ fontSize: 12, marginBottom: 12 }}>
+                Always on the form. Age and Ticket type are switched on/off in step 2
+                {hasPhoneField ? '; Phone is replaced by your own phone field' : ''}.
+              </div>
+              <BasicFields
+                showTags
+                settings={basicSettings(event, fields)}
+                values={basicPreview}
+                onChange={(k, v) => setBasicPreview((p) => ({ ...p, [k]: v }))}
+              />
+
+              <hr style={{ margin: '18px 0', border: 'none', borderTop: '1px solid var(--line)' }} />
+              <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 12 }}>
+                Your added fields ({fields.length})
+              </div>
+              {fields.length > 0
+                ? <FormRenderer schema={fields} value={preview} onChange={setPreview} />
+                : <div className="muted" style={{ fontSize: 13 }}>None yet — click “+ Add field” above to add your own questions.</div>}
+
+              <button type="button" className="btn primary" disabled style={{ width: '100%', marginTop: 16, opacity: 0.6 }}>
+                Register now
+              </button>
+            </div>
           </>
         )}
 
