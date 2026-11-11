@@ -106,10 +106,10 @@ export default function RegistrationPortal() {
 
   if (success) {
     return (
-      <div className="center-screen">
-        <div className="card auth-card" style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: 48, marginBottom: 8 }}>✓</div>
-          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 22, marginBottom: 6 }}>
+      <div className="center-screen public-page">
+        <div className="card public-card" style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: 64, lineHeight: 1, marginBottom: 12, color: '#16a34a' }}>✓</div>
+          <h2 className="public-title" style={{ fontSize: 30, marginBottom: 8 }}>
             You're registered!
           </h2>
           <p className="muted" style={{ marginBottom: 18 }}>
@@ -140,13 +140,13 @@ export default function RegistrationPortal() {
   const seatsLeft = event?.seats_left ?? null
 
   return (
-    <div className="center-screen" style={{ padding: 20 }}>
-      <div className="card" style={{ maxWidth: 560, width: '100%' }}>
-        <div style={{ marginBottom: 20 }}>
-          <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 26, marginBottom: 4 }}>
+    <div className="center-screen public-page">
+      <div className="card public-card">
+        <div style={{ marginBottom: 24 }}>
+          <h1 className="public-title">
             {event?.title}
           </h1>
-          {event?.venue && <div className="muted">{event.venue}</div>}
+          {event?.venue && <div className="muted public-venue">{event.venue}</div>}
 
           <div className="row" style={{ gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
             {event?.price !== null && event?.price !== undefined && (
@@ -163,10 +163,10 @@ export default function RegistrationPortal() {
           </div>
 
           {event?.description && (
-            <p style={{ marginTop: 14, color: 'var(--text)', lineHeight: 1.5 }}>{event.description}</p>
+            <p className="public-desc">{event.description}</p>
           )}
           {seatsLeft !== null && (
-            <div className="muted" style={{ marginTop: 10, fontSize: 13 }}>
+            <div className="muted" style={{ marginTop: 12, fontSize: 15 }}>
               {seatsLeft > 0 ? `${seatsLeft} seats remaining` : 'Event at capacity — waitlist available'}
             </div>
           )}
