@@ -325,6 +325,7 @@ export default function EventsDashboard() {
                             <td>
                               <div style={{ fontWeight: 600 }}>{r.attendee_name}</div>
                               <div className="muted" style={{ fontSize: 12 }}>{r.attendee_email}</div>
+                              {r.phone && <div className="muted" style={{ fontSize: 12 }}>{r.phone}</div>}
                             </td>
                             <td>{r.access_level}</td>
                             <td><span className={`pill ${r.status}`}>{r.status}</span></td>

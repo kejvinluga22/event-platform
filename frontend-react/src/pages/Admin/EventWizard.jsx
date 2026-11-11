@@ -12,6 +12,10 @@ const emptyEvent = {
   starts_at_utc: '', ends_at_utc: '', capacity: 100, waitlist_enabled: false,
   price: '', currency: 'ALL', minimum_age: 18, organizer_name: '',
   email_subject: '',
+  issue_tickets: true,        // false = registration only (e.g. a ceremony)
+  ask_ticket_type: false,     // ask guests to pick VIP / General / ...
+  ticket_type_options: 'General, VIP',
+  ask_age: false,             // show an Age field on the public form
   status: 'draft',
 }
 
@@ -47,6 +51,10 @@ export default function EventWizard() {
         price: e.price ?? '', currency: e.currency || 'ALL',
         minimum_age: e.minimum_age ?? 0, organizer_name: e.organizer_name || '',
         email_subject: e.email_subject || '',
+        issue_tickets: e.issue_tickets === undefined || e.issue_tickets === null ? true : !!Number(e.issue_tickets),
+        ask_ticket_type: !!Number(e.ask_ticket_type),
+        ticket_type_options: e.ticket_type_options || 'General, VIP',
+        ask_age: !!Number(e.ask_age),
         status: e.status || 'draft',
       })
       setFields(Array.isArray(e.form_config) ? e.form_config : [])
@@ -177,7 +185,54 @@ export default function EventWizard() {
             </label>
 
             <hr style={{ margin: '24px 0', border: 'none', borderTop: '1px solid var(--line)' }} />
-            <h3 style={{ marginBottom: 12, fontSize: 16 }}>Ticket details</h3>
+            <h3 style={{ marginBottom: 12, fontSize: 16 }}>Registration options</h3>
+
+            <div className="field">
+              <label>What do guests receive?</label>
+              <div className="row" style={{ gap: 18, flexWrap: 'wrap' }}>
+                <label className="row" style={{ gap: 6, fontWeight: 400, cursor: 'pointer' }}>
+                  <input type="radio" name="issue_tickets" checked={event.issue_tickets} onChange={() => setField('issue_tickets', true)} />
+                  <span>A ticket (PDF with QR code)</span>
+                </label>
+                <label className="row" style={{ gap: 6, fontWeight: 400, cursor: 'pointer' }}>
+                  <input type="radio" name="issue_tickets" checked={!event.issue_tickets} onChange={() => setField('issue_tickets', false)} />
+                  <span>Registration only — no ticket (e.g. a ceremony)</span>
+                </label>
+              </div>
+              <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
+                {event.issue_tickets
+                  ? 'Guests get an e-ticket PDF by email.'
+                  : 'Guests get a simple "registration confirmed" email. You still get the full list of registered people.'}
+              </div>
+            </div>
+
+            {event.issue_tickets && (
+              <div className="field">
+                <label className="row" style={{ gap: 8, cursor: 'pointer' }}>
+                  <input type="checkbox" checked={event.ask_ticket_type} onChange={(e) => setField('ask_ticket_type', e.target.checked)} />
+                  <span>Ask guests which ticket type they want (VIP, General…)</span>
+                </label>
+                {event.ask_ticket_type && (
+                  <>
+                    <input
+                      style={{ marginTop: 8 }}
+                      value={event.ticket_type_options}
+                      onChange={(e) => setField('ticket_type_options', e.target.value)}
+                      placeholder="General, VIP, Student"
+                    />
+                    <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>Ticket types, separated by commas.</div>
+                  </>
+                )}
+              </div>
+            )}
+
+            <label className="row" style={{ gap: 8, cursor: 'pointer' }}>
+              <input type="checkbox" checked={event.ask_age} onChange={(e) => setField('ask_age', e.target.checked)} />
+              <span>Show an "Age" field on the registration form</span>
+            </label>
+
+            <hr style={{ margin: '24px 0', border: 'none', borderTop: '1px solid var(--line)' }} />
+            <h3 style={{ marginBottom: 12, fontSize: 16 }}>{event.issue_tickets ? 'Ticket details' : 'Event details'}</h3>
 
             <div className="grid cols-2">
               <div className="field">
@@ -331,6 +386,11 @@ export default function EventWizard() {
                 <tr><th>Price</th><td>{event.price === '' || Number(event.price) === 0 ? 'FREE' : `${event.price} ${event.currency}`}</td></tr>
                 <tr><th>Minimum age</th><td>{Number(event.minimum_age) > 0 ? `${event.minimum_age}+` : 'No limit'}</td></tr>
                 <tr><th>Organizer</th><td>{event.organizer_name || '—'}</td></tr>
+                <tr><th>Guests receive</th><td>{event.issue_tickets ? 'Ticket (PDF + QR)' : 'Registration only — no ticket'}</td></tr>
+                {event.issue_tickets && (
+                  <tr><th>Ticket type question</th><td>{event.ask_ticket_type ? `Yes — ${event.ticket_type_options || 'General, VIP'}` : 'No'}</td></tr>
+                )}
+                <tr><th>Age field</th><td>{event.ask_age ? 'Shown' : 'Hidden'}</td></tr>
                 <tr><th>Custom fields</th><td>{fields.length}</td></tr>
                 <tr><th>Status</th><td><span className={`pill ${event.status}`}>{event.status}</span></td></tr>
               </tbody>
