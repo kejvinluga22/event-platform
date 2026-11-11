@@ -19,7 +19,7 @@ use PDO;
 final class SchemaUpgrade
 {
     /** Bump when adding entries below so running containers re-check. */
-    private const VERSION = 'v4';
+    private const VERSION = 'v5';
 
     /** table => [column => definition] */
     private const COLUMNS = [
@@ -34,6 +34,8 @@ final class SchemaUpgrade
             'ticket_type_options' => 'VARCHAR(500) NULL',
             // Show an "Age" field on the public registration form.
             'ask_age'             => 'TINYINT(1) NOT NULL DEFAULT 0',
+            // Show the price on the public page and on the ticket PDF.
+            'show_price'          => 'TINYINT(1) NOT NULL DEFAULT 1',
         ],
         'registrations' => [
             'first_name'   => 'VARCHAR(100) NULL',

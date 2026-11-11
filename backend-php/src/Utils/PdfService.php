@@ -77,6 +77,7 @@ final class PdfService
             'Status_Label' => '',
             'Age_Notice'   => 'To enter the event, you must be at least 18 years old.',
             'Price'        => '—',
+            'Price_Style'  => '',
         ];
         $html = self::bind($template, $vars);
 
