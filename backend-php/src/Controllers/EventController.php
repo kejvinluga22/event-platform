@@ -190,7 +190,7 @@ final class EventController
         $stmt = $this->db->prepare(
             "SELECT id, title, slug, description, venue, timezone, starts_at_utc, ends_at_utc,
                     capacity, price, currency, minimum_age, organizer_name, branding_json, status,
-                    issue_tickets, ask_ticket_type, ticket_type_options, ask_age
+                    issue_tickets, ask_ticket_type, ticket_type_options, ask_age, show_price
              FROM events WHERE slug = :s AND status IN ('published','live') LIMIT 1"
         );
         $stmt->execute([':s' => $slug]);
@@ -209,6 +209,9 @@ final class EventController
             self::ticketTypeList($event['ticket_type_options'] ?? null)
         );
         unset($event['branding_json']);
+        if ((int) ($event['show_price'] ?? 1) === 0) {
+            $event['price'] = null; // organizer chose not to show the price
+        }
         Response::ok(['event' => $event]);
     }
 
@@ -229,11 +232,11 @@ final class EventController
                 (owner_id, title, slug, description, venue, venue_lat, venue_lng,
                  timezone, starts_at_utc, ends_at_utc, capacity, price, currency,
                  minimum_age, organizer_name, email_subject, waitlist_enabled, branding_json, status,
-                 issue_tickets, ask_ticket_type, ticket_type_options, ask_age)
+                 issue_tickets, ask_ticket_type, ticket_type_options, ask_age, show_price)
              VALUES
                 (:owner, :title, :slug, :desc, :venue, :lat, :lng, :tz, :start, :end,
                  :cap, :price, :cur, :age, :org, :esub, :wait, :brand, :status,
-                 :issue, :askt, :topts, :askage)'
+                 :issue, :askt, :topts, :askage, :showp)'
         );
         $stmt->execute([
             ':owner'  => $claims['sub'],
@@ -259,6 +262,7 @@ final class EventController
             ':askt'   => !empty($b['ask_ticket_type']) ? 1 : 0,
             ':topts'  => self::normalizeOptions($b['ticket_type_options'] ?? null),
             ':askage' => !empty($b['ask_age']) ? 1 : 0,
+            ':showp'  => array_key_exists('show_price', $b) ? (empty($b['show_price']) ? 0 : 1) : 1,
         ]);
 
         $id = (int) $this->db->lastInsertId();
@@ -287,11 +291,11 @@ final class EventController
             'title', 'description', 'venue', 'venue_lat', 'venue_lng',
             'timezone', 'starts_at_utc', 'ends_at_utc', 'capacity', 'waitlist_enabled',
             'price', 'currency', 'minimum_age', 'organizer_name', 'email_subject',
-            'issue_tickets', 'ask_ticket_type', 'ticket_type_options', 'ask_age',
+            'issue_tickets', 'ask_ticket_type', 'ticket_type_options', 'ask_age', 'show_price',
         ];
         // Yes/no switches arrive as JSON true/false — store them as 1/0
         // (a raw false would bind as '' and be rejected by strict MySQL).
-        $flags = ['waitlist_enabled', 'issue_tickets', 'ask_ticket_type', 'ask_age'];
+        $flags = ['waitlist_enabled', 'issue_tickets', 'ask_ticket_type', 'ask_age', 'show_price'];
         $sets = [];
         $params = [':id' => $id];
         foreach ($fields as $f) {
@@ -360,12 +364,12 @@ final class EventController
                 (owner_id, title, slug, description, venue, venue_lat, venue_lng, timezone,
                  capacity, waitlist_enabled, branding_json, status,
                  price, currency, minimum_age, organizer_name, email_subject,
-                 issue_tickets, ask_ticket_type, ticket_type_options, ask_age)
+                 issue_tickets, ask_ticket_type, ticket_type_options, ask_age, show_price)
              VALUES
                 (:owner, :title, :slug, :desc, :venue, :lat, :lng, :tz,
                  :cap, :wait, :brand, "draft",
                  :price, :cur, :age, :org, :esub,
-                 :issue, :askt, :topts, :askage)'
+                 :issue, :askt, :topts, :askage, :showp)'
         );
         $stmt->execute([
             ':owner' => $claims['sub'],
@@ -388,6 +392,7 @@ final class EventController
             ':askt'  => (int) ($src['ask_ticket_type'] ?? 0),
             ':topts' => $src['ticket_type_options'] ?? null,
             ':askage'=> (int) ($src['ask_age'] ?? 0),
+            ':showp' => (int) ($src['show_price'] ?? 1),
         ]);
         $newId = (int) $this->db->lastInsertId();
 
@@ -436,7 +441,7 @@ final class EventController
              FROM registrations
              WHERE event_id = :e
              ORDER BY created_at DESC
-             LIMIT 20"
+             LIMIT 2000"
         );
         $recent->execute([':e' => $id]);
 

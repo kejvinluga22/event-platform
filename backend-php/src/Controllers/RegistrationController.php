@@ -223,10 +223,37 @@ final class RegistrationController
             'currency'      => $reg['currency']      ?? 'ALL',
             'minimum_age'   => $reg['minimum_age']   ?? 0,
             'email_subject' => $reg['email_subject'] ?? null,
+            'show_price'    => $reg['show_price'] ?? 1,
         ];
         $issueTickets = (int) ($reg['issue_tickets'] ?? 1) === 1;
         $this->queueConfirmation($event, $regId, $reg['attendee_name'], $reg['attendee_email'], $qrToken, $reg['access_level'], $issueTickets);
         Response::ok(['queued' => true], $issueTickets ? 'Ticket queued for resend' : 'Confirmation re-sent');
+    }
+
+    /**
+     * DELETE /registrations/{id} — permanently removes a registered person,
+     * whether or not they've checked in. Their scan history goes with them
+     * (attendance_log cascades); sent-email log rows are kept but unlinked.
+     */
+    public function destroy(int $regId): void
+    {
+        $claims = AuthMiddleware::authenticate(['super_admin', 'event_manager']);
+        $reg = $this->regWithEvent($regId);
+        if (!$reg) {
+            Response::error('Registration not found', 404);
+        }
+        if (($claims['role'] ?? '') !== 'super_admin' && (int) $reg['owner_id'] !== (int) $claims['sub']) {
+            Response::error('You do not own this event', 403);
+        }
+
+        $this->db->prepare('DELETE FROM registrations WHERE id = :id')->execute([':id' => $regId]);
+
+        AuditLogger::log(
+            $this->db, (int) $claims['sub'], 'registration.delete', 'registration', $regId,
+            'event=' . $reg['event_id'] . '; name=' . $reg['attendee_name'] . '; email=' . $reg['attendee_email']
+            . '; checkin=' . $reg['checkin_status']
+        );
+        Response::ok(['deleted' => true], 'Registration deleted');
     }
 
     /** GET /registrations/{id}/ticket.pdf — streams the full e-ticket PDF */
@@ -246,6 +273,7 @@ final class RegistrationController
             'currency'      => $reg['currency'] ?? 'ALL',
             'minimum_age'   => $reg['minimum_age'] ?? 0,
             'email_subject' => $reg['email_subject'] ?? null,
+            'show_price'    => $reg['show_price'] ?? 1,
         ];
 
         $pdfPath = PdfService::renderTicket(
@@ -542,6 +570,8 @@ final class RegistrationController
             'Attendee_Name' => $name,
             'Ticket_Type'   => $access,
             'Price'         => $priceLabel,
+            // Hides the "Price:" row on the ticket when the organizer turned it off.
+            'Price_Style'   => (int) ($event['show_price'] ?? 1) === 0 ? 'display:none' : '',
             'Age_Notice'    => $ageNotice,
             'Status_Label'  => strtoupper($access),
             'Order_Time'    => date('d.m.Y H:i'),
@@ -766,7 +796,8 @@ final class RegistrationController
     {
         $s = $this->db->prepare(
             'SELECT r.*, e.title AS event_title, e.venue, e.starts_at_utc, e.ends_at_utc,
-                    e.price, e.currency, e.minimum_age, e.email_subject, e.issue_tickets
+                    e.price, e.currency, e.minimum_age, e.email_subject, e.issue_tickets,
+                    e.show_price, e.owner_id
              FROM registrations r JOIN events e ON e.id = r.event_id
              WHERE r.id = :id LIMIT 1'
         );
