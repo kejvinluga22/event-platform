@@ -874,6 +874,22 @@ final class RegistrationController
       <div class="rid">Registration #{$reg['id']}</div>
     </div>
   </div>
+<script>
+  // Phones in "desktop site" mode lay the page out ~980px wide and shrink it;
+  // zoom back to the phone's real width so the ticket and QR stay big.
+  (function () {
+    var r = window.innerWidth / screen.width;
+    if (matchMedia('(pointer: coarse)').matches && screen.width < 700 && r > 1.3) {
+      document.documentElement.style.zoom = r;
+      document.body.style.padding = '0';
+      document.body.style.alignItems = 'stretch';
+      document.body.style.background = '#fff';
+      var c = document.querySelector('.card');
+      c.style.maxWidth = 'none'; c.style.borderRadius = '0'; c.style.boxShadow = 'none';
+      document.querySelector('.card img').style.width = document.querySelector('.card img').style.height = Math.round(screen.width * 0.82) + 'px';
+    }
+  })();
+</script>
 </body></html>
 HTML;
     }
