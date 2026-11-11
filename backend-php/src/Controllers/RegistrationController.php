@@ -58,7 +58,50 @@ final class RegistrationController
 
         // Validate dynamic fields server-side against the active schema.
         $schema = $this->activeFormSchema((int) $event['id']);
-        $errors = $this->validateAgainstSchema($schema, is_array($form) ? $form : []);
+        $form   = is_array($form) ? $form : [];
+        $errors = $this->validateAgainstSchema($schema, $form);
+
+        // Phone: use the built-in field, or pick it up from a custom
+        // "phone"/"tel" field so it lands in the phone column (and exports).
+        if ($phone === '') {
+            $phone = $this->phoneFromForm($schema, $form);
+        }
+
+        // Ticket type question (only in ticket mode, only when switched on).
+        $issueTickets = (int) ($event['issue_tickets'] ?? 1) === 1;
+        if ($issueTickets && (int) ($event['ask_ticket_type'] ?? 0) === 1) {
+            $choices = EventController::ticketTypeList($event['ticket_type_options'] ?? null);
+            $match = null;
+            foreach ($choices as $c) {
+                $dec = static fn ($v) => mb_strtolower(html_entity_decode((string) $v, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+                if ($dec($c) === $dec($access)) {
+                    $match = $c;
+                    break;
+                }
+            }
+            if ($match === null) {
+                $errors['access_level'] = 'Please choose an option';
+            } else {
+                $access = $match;
+            }
+        } else {
+            $access = 'general';
+        }
+
+        // Age field (only when the organizer switched it on).
+        $age = null;
+        if ((int) ($event['ask_age'] ?? 0) === 1) {
+            $rawAge = trim((string) Request::input('attendee_age', ''));
+            $minAge = (int) ($event['minimum_age'] ?? 0);
+            if ($rawAge === '' || !ctype_digit($rawAge) || (int) $rawAge < 1 || (int) $rawAge > 120) {
+                $errors['attendee_age'] = 'Please enter a valid age';
+            } elseif ($minAge > 0 && (int) $rawAge < $minAge) {
+                $errors['attendee_age'] = "You must be at least $minAge years old";
+            } else {
+                $age = (int) $rawAge;
+            }
+        }
+
         if ($errors) {
             Response::error('Validation failed', 422, ['fields' => $errors]);
         }
@@ -81,8 +124,8 @@ final class RegistrationController
             $stmt = $this->db->prepare(
                 'INSERT INTO registrations
                     (event_id, attendee_name, first_name, last_name, attendee_email, phone,
-                     access_level, form_data, status, source)
-                 VALUES (:e, :n, :fn, :ln, :em, :ph, :acl, :form, :status, "public")'
+                     attendee_age, access_level, form_data, status, source)
+                 VALUES (:e, :n, :fn, :ln, :em, :ph, :age, :acl, :form, :status, "public")'
             );
             $stmt->execute([
                 ':e'      => $event['id'],
@@ -91,6 +134,7 @@ final class RegistrationController
                 ':ln'     => $lastName ?: null,
                 ':em'     => $email,
                 ':ph'     => $phone ?: null,
+                ':age'    => $age,
                 ':acl'    => $access,
                 ':form'   => json_encode($form),
                 ':status' => $status,
@@ -116,15 +160,17 @@ final class RegistrationController
         // hold the registrations row lock, and a mail failure shouldn't roll
         // back an otherwise-successful registration.
         if ($status === 'confirmed') {
-            $this->queueConfirmation($event, $regId, $name, $email, $qrToken, $access);
+            $this->queueConfirmation($event, $regId, $name, $email, $qrToken, $access, $issueTickets);
         }
 
+        $withTicket = $status === 'confirmed' && $issueTickets;
         $limiter->reset('public_register');
         Response::created([
             'registration_id' => $regId,
             'status'          => $status,
-            'ticket_url'      => $status === 'confirmed' ? "/api/ticket/$regId" : null,
-            'pdf_url'         => $status === 'confirmed' ? "/api/registrations/$regId/ticket.pdf" : null,
+            'issue_tickets'   => $issueTickets,
+            'ticket_url'      => $withTicket ? "/api/ticket/$regId" : null,
+            'pdf_url'         => $withTicket ? "/api/registrations/$regId/ticket.pdf" : null,
         ], $status === 'waitlisted' ? 'Added to waitlist' : 'Registration confirmed');
     }
 
@@ -178,8 +224,9 @@ final class RegistrationController
             'minimum_age'   => $reg['minimum_age']   ?? 0,
             'email_subject' => $reg['email_subject'] ?? null,
         ];
-        $this->queueConfirmation($event, $regId, $reg['attendee_name'], $reg['attendee_email'], $qrToken, $reg['access_level']);
-        Response::ok(['queued' => true], 'Ticket queued for resend');
+        $issueTickets = (int) ($reg['issue_tickets'] ?? 1) === 1;
+        $this->queueConfirmation($event, $regId, $reg['attendee_name'], $reg['attendee_email'], $qrToken, $reg['access_level'], $issueTickets);
+        Response::ok(['queued' => true], $issueTickets ? 'Ticket queued for resend' : 'Confirmation re-sent');
     }
 
     /** GET /registrations/{id}/ticket.pdf — streams the full e-ticket PDF */
@@ -264,6 +311,7 @@ final class RegistrationController
         header('Content-Type: text/csv; charset=utf-8');
         header('Content-Disposition: attachment; filename="registrations_event_' . $eventId . '.csv"');
         $out = fopen('php://output', 'w');
+        fwrite($out, "\xEF\xBB\xBF"); // UTF-8 BOM so Excel shows ë, ç, etc. correctly
         fputcsv($out, $headers);
         foreach ($rows as $row) {
             fputcsv($out, $row);
@@ -345,8 +393,24 @@ final class RegistrationController
      * if that fails (network blip, SMTP timeout, misconfiguration), the email
      * is parked in email_queue and the cron worker retries it later.
      */
-    private function queueConfirmation(array $event, int $regId, string $name, string $email, string $qrToken, string $access): void
+    private function queueConfirmation(array $event, int $regId, string $name, string $email, string $qrToken, string $access, bool $issueTicket = true): void
     {
+        if (!$issueTicket) {
+            // Registration-only mode (e.g. a ceremony): plain confirmation,
+            // no ticket PDF and no "ticket" wording.
+            $subject = trim((string) ($event['email_subject'] ?? ''));
+            if ($subject === '') {
+                $subject = 'Registration confirmed: ' . $event['title'];
+            }
+            $body = '<p>Hi ' . $name . ',</p>'
+                  . '<p>Your registration for <strong>' . $event['title'] . '</strong> is confirmed.</p>'
+                  . (!empty($event['venue']) ? '<p>Venue: ' . $event['venue'] . '</p>' : '')
+                  . (!empty($event['starts_at_utc']) ? '<p>Date: ' . date('d M Y, H:i', strtotime((string) $event['starts_at_utc'])) . '</p>' : '')
+                  . '<p>We look forward to seeing you.</p>';
+            $this->deliverOrQueue($regId, $email, $subject, $body, null);
+            return;
+        }
+
         $ticket = PdfService::renderTicket(
             $this->ticketVars($event, $regId, $name, $access, $qrToken),
             $qrToken,
@@ -369,6 +433,13 @@ final class RegistrationController
               // not a frontend SPA route, so the link must point at the API's own base URL.
               . '<a href="' . $this->apiBaseUrl() . '/ticket/' . $regId . '">View ticket</a></p>';
 
+        $this->deliverOrQueue($regId, $email, $subject, $body, $ticket);
+    }
+
+    /** Try to send now; on failure park the email in the queue for the cron worker. */
+    private function deliverOrQueue(int $regId, string $email, string $subject, string $body, ?string $attachment): void
+    {
+        $ticket = $attachment;
         // Attempt immediate delivery.
         $result = MailService::send($email, $subject, $body, $ticket);
 
@@ -533,9 +604,14 @@ final class RegistrationController
     /** Builds the shared header row + data rows used by CSV / XLSX / PDF export. */
     private function reportData(int $eventId): array
     {
+        $ev = $this->db->prepare('SELECT * FROM events WHERE id = :e');
+        $ev->execute([':e' => $eventId]);
+        $event = $ev->fetch() ?: [];
+        $issueTickets = (int) ($event['issue_tickets'] ?? 1) === 1;
+
         $stmt = $this->db->prepare(
             'SELECT r.id, r.first_name, r.last_name, r.attendee_name, r.attendee_email, r.phone,
-                    r.access_level, r.status, r.checkin_status,
+                    r.attendee_age, r.form_data, r.access_level, r.status, r.checkin_status,
                     r.source, r.created_at,
                     (SELECT MIN(scanned_at) FROM attendance_log a
                        WHERE a.registration_id = r.id AND a.scan_result = "success") AS checkin_time
@@ -544,12 +620,41 @@ final class RegistrationController
              ORDER BY r.created_at'
         );
         $stmt->execute([':e' => $eventId]);
-        $headers = [
-            'ID', 'First Name', 'Last Name', 'Email', 'Phone',
-            'Access Level', 'Status', 'Check-in', 'Check-in Time', 'Source', 'Registered At',
-        ];
+        $records = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        // Custom form fields become extra columns. The field used as the
+        // phone number is skipped (it's already in the Phone column).
+        $schema     = $this->activeFormSchema($eventId);
+        $phoneKey   = $this->phoneFieldKey($schema);
+        $customCols = [];
+        foreach ($schema as $f) {
+            $key = $f['name'] ?? null;
+            if ($key && $key !== $phoneKey) {
+                $customCols[$key] = html_entity_decode((string) ($f['label'] ?? $key), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            }
+        }
+
+        $showAge = (int) ($event['ask_age'] ?? 0) === 1;
+        if (!$showAge) {
+            foreach ($records as $r) {
+                if ($r['attendee_age'] !== null) { $showAge = true; break; }
+            }
+        }
+
+        $headers = ['ID', 'First Name', 'Last Name', 'Email', 'Phone'];
+        if ($showAge) {
+            $headers[] = 'Age';
+        }
+        if ($issueTickets) {
+            $headers[] = 'Ticket Type';
+        }
+        array_push($headers, 'Status', 'Check-in', 'Check-in Time', 'Source', 'Registered At');
+        foreach ($customCols as $label) {
+            $headers[] = $label;
+        }
+
         $rows = [];
-        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+        foreach ($records as $row) {
             $first = $row['first_name'];
             $last  = $row['last_name'];
             // Fall back to splitting the combined name if first/last empty (older rows).
@@ -558,21 +663,67 @@ final class RegistrationController
                 $first = $parts[0] ?? '';
                 $last  = $parts[1] ?? '';
             }
-            $rows[] = [
-                $row['id'],
-                $first ?? '',
-                $last ?? '',
-                $row['attendee_email'],
-                $row['phone'] ?? '',
-                $row['access_level'],
-                $row['status'],
-                $row['checkin_status'],
-                $row['checkin_time'] ?? '',
-                $row['source'],
-                $row['created_at'],
-            ];
+            $form  = $row['form_data'] ? (json_decode($row['form_data'], true) ?: []) : [];
+            $phone = (string) ($row['phone'] ?? '');
+            if ($phone === '') {
+                // Older registrations kept the phone only inside form_data.
+                $phone = $this->phoneFromForm($schema, $form);
+            }
+
+            $line = [$row['id'], $first ?? '', $last ?? '', $row['attendee_email'], $phone];
+            if ($showAge) {
+                $line[] = $row['attendee_age'] ?? '';
+            }
+            if ($issueTickets) {
+                $line[] = $row['access_level'];
+            }
+            array_push($line, $row['status'], $row['checkin_status'], $row['checkin_time'] ?? '', $row['source'], $row['created_at']);
+            foreach (array_keys($customCols) as $key) {
+                $v = $form[$key] ?? '';
+                $line[] = is_array($v) ? implode(', ', $v) : (string) $v;
+            }
+            // Stored text is HTML-escaped at input time; exports want plain text.
+            $rows[] = array_map(
+                static fn ($c) => is_string($c) ? html_entity_decode($c, ENT_QUOTES | ENT_HTML5, 'UTF-8') : $c,
+                $line
+            );
         }
         return [$headers, $rows];
+    }
+
+    /** Key of the custom form field that holds a phone number, if any. */
+    private function phoneFieldKey(array $schema): ?string
+    {
+        foreach ($schema as $f) {
+            if (($f['type'] ?? '') === 'tel' && !empty($f['name'])) {
+                return $f['name'];
+            }
+        }
+        $pattern = '/phone|telefon|\btel\b|mobile|celular/i';
+        foreach ($schema as $f) {
+            if (empty($f['name'])) {
+                continue;
+            }
+            if (preg_match($pattern, (string) $f['name']) || preg_match($pattern, (string) ($f['label'] ?? ''))) {
+                return $f['name'];
+            }
+        }
+        return null;
+    }
+
+    /** Phone number typed into a custom form field ('' when none). */
+    private function phoneFromForm(array $schema, array $form): string
+    {
+        $key = $this->phoneFieldKey($schema);
+        if ($key !== null && isset($form[$key]) && !is_array($form[$key])) {
+            return trim((string) $form[$key]);
+        }
+        foreach (['phone', 'telefon', 'tel', 'mobile', 'phone_number'] as $k) {
+            if (!empty($form[$k]) && !is_array($form[$k])) {
+                return trim((string) $form[$k]);
+            }
+        }
+        return '';
     }
 
     /** Summary stats used in the report headers. */
@@ -615,7 +766,7 @@ final class RegistrationController
     {
         $s = $this->db->prepare(
             'SELECT r.*, e.title AS event_title, e.venue, e.starts_at_utc, e.ends_at_utc,
-                    e.price, e.currency, e.minimum_age, e.email_subject
+                    e.price, e.currency, e.minimum_age, e.email_subject, e.issue_tickets
              FROM registrations r JOIN events e ON e.id = r.event_id
              WHERE r.id = :id LIMIT 1'
         );

@@ -189,7 +189,8 @@ final class EventController
     {
         $stmt = $this->db->prepare(
             "SELECT id, title, slug, description, venue, timezone, starts_at_utc, ends_at_utc,
-                    capacity, price, currency, minimum_age, organizer_name, branding_json, status
+                    capacity, price, currency, minimum_age, organizer_name, branding_json, status,
+                    issue_tickets, ask_ticket_type, ticket_type_options, ask_age
              FROM events WHERE slug = :s AND status IN ('published','live') LIMIT 1"
         );
         $stmt->execute([':s' => $slug]);
@@ -203,6 +204,10 @@ final class EventController
         $event['form_config']  = $form ? json_decode($form['field_json'], true) : [];
         $event['branding']     = $event['branding_json'] ? json_decode($event['branding_json'], true) : null;
         $event['seats_left']   = $this->seatsLeft((int) $event['id'], (int) $event['capacity']);
+        $event['ticket_types'] = array_map(
+            static fn ($t) => html_entity_decode($t, ENT_QUOTES | ENT_HTML5, 'UTF-8'),
+            self::ticketTypeList($event['ticket_type_options'] ?? null)
+        );
         unset($event['branding_json']);
         Response::ok(['event' => $event]);
     }
@@ -223,10 +228,12 @@ final class EventController
             'INSERT INTO events
                 (owner_id, title, slug, description, venue, venue_lat, venue_lng,
                  timezone, starts_at_utc, ends_at_utc, capacity, price, currency,
-                 minimum_age, organizer_name, email_subject, waitlist_enabled, branding_json, status)
+                 minimum_age, organizer_name, email_subject, waitlist_enabled, branding_json, status,
+                 issue_tickets, ask_ticket_type, ticket_type_options, ask_age)
              VALUES
                 (:owner, :title, :slug, :desc, :venue, :lat, :lng, :tz, :start, :end,
-                 :cap, :price, :cur, :age, :org, :esub, :wait, :brand, :status)'
+                 :cap, :price, :cur, :age, :org, :esub, :wait, :brand, :status,
+                 :issue, :askt, :topts, :askage)'
         );
         $stmt->execute([
             ':owner'  => $claims['sub'],
@@ -248,6 +255,10 @@ final class EventController
             ':wait'   => !empty($b['waitlist_enabled']) ? 1 : 0,
             ':brand'  => isset($b['branding']) ? json_encode($b['branding']) : null,
             ':status' => in_array($b['status'] ?? 'draft', self::STATUSES, true) ? $b['status'] : 'draft',
+            ':issue'  => array_key_exists('issue_tickets', $b) ? (empty($b['issue_tickets']) ? 0 : 1) : 1,
+            ':askt'   => !empty($b['ask_ticket_type']) ? 1 : 0,
+            ':topts'  => self::normalizeOptions($b['ticket_type_options'] ?? null),
+            ':askage' => !empty($b['ask_age']) ? 1 : 0,
         ]);
 
         $id = (int) $this->db->lastInsertId();
@@ -276,13 +287,23 @@ final class EventController
             'title', 'description', 'venue', 'venue_lat', 'venue_lng',
             'timezone', 'starts_at_utc', 'ends_at_utc', 'capacity', 'waitlist_enabled',
             'price', 'currency', 'minimum_age', 'organizer_name', 'email_subject',
+            'issue_tickets', 'ask_ticket_type', 'ticket_type_options', 'ask_age',
         ];
+        // Yes/no switches arrive as JSON true/false — store them as 1/0
+        // (a raw false would bind as '' and be rejected by strict MySQL).
+        $flags = ['waitlist_enabled', 'issue_tickets', 'ask_ticket_type', 'ask_age'];
         $sets = [];
         $params = [':id' => $id];
         foreach ($fields as $f) {
             if (array_key_exists($f, $b)) {
                 $sets[] = "$f = :$f";
-                $params[":$f"] = $b[$f];
+                if (in_array($f, $flags, true)) {
+                    $params[":$f"] = empty($b[$f]) ? 0 : 1;
+                } elseif ($f === 'ticket_type_options') {
+                    $params[":$f"] = self::normalizeOptions($b[$f]);
+                } else {
+                    $params[":$f"] = $b[$f];
+                }
             }
         }
         if (isset($b['branding'])) {
@@ -337,10 +358,14 @@ final class EventController
         $stmt = $this->db->prepare(
             'INSERT INTO events
                 (owner_id, title, slug, description, venue, venue_lat, venue_lng, timezone,
-                 capacity, waitlist_enabled, branding_json, status)
+                 capacity, waitlist_enabled, branding_json, status,
+                 price, currency, minimum_age, organizer_name, email_subject,
+                 issue_tickets, ask_ticket_type, ticket_type_options, ask_age)
              VALUES
                 (:owner, :title, :slug, :desc, :venue, :lat, :lng, :tz,
-                 :cap, :wait, :brand, "draft")'
+                 :cap, :wait, :brand, "draft",
+                 :price, :cur, :age, :org, :esub,
+                 :issue, :askt, :topts, :askage)'
         );
         $stmt->execute([
             ':owner' => $claims['sub'],
@@ -354,6 +379,15 @@ final class EventController
             ':cap'   => $src['capacity'],
             ':wait'  => $src['waitlist_enabled'],
             ':brand' => $src['branding_json'],
+            ':price' => $src['price'] ?? null,
+            ':cur'   => $src['currency'] ?? 'ALL',
+            ':age'   => (int) ($src['minimum_age'] ?? 0),
+            ':org'   => $src['organizer_name'] ?? null,
+            ':esub'  => $src['email_subject'] ?? null,
+            ':issue' => (int) ($src['issue_tickets'] ?? 1),
+            ':askt'  => (int) ($src['ask_ticket_type'] ?? 0),
+            ':topts' => $src['ticket_type_options'] ?? null,
+            ':askage'=> (int) ($src['ask_age'] ?? 0),
         ]);
         $newId = (int) $this->db->lastInsertId();
 
@@ -397,7 +431,7 @@ final class EventController
 
         // Recent registrations (latest 20) for the inline drawer panel.
         $recent = $this->db->prepare(
-            "SELECT id, attendee_name, attendee_email, access_level, status, checkin_status,
+            "SELECT id, attendee_name, attendee_email, phone, access_level, status, checkin_status,
                     source, created_at
              FROM registrations
              WHERE event_id = :e
@@ -438,6 +472,26 @@ final class EventController
     }
 
     // ---------------- helpers ----------------
+
+    /** Default choices when the organizer hasn't typed their own. */
+    public const DEFAULT_TICKET_TYPES = ['General', 'VIP'];
+
+    /** "VIP,  General ,," -> "VIP, General" (null when empty). */
+    private static function normalizeOptions($raw): ?string
+    {
+        if (is_array($raw)) {
+            $raw = implode(',', $raw);
+        }
+        $list = array_values(array_filter(array_map('trim', explode(',', (string) $raw)), 'strlen'));
+        return $list ? mb_substr(implode(', ', array_unique($list)), 0, 500) : null;
+    }
+
+    /** Stored option string -> list of choices (falls back to the defaults). */
+    public static function ticketTypeList(?string $raw): array
+    {
+        $list = array_values(array_filter(array_map('trim', explode(',', (string) $raw)), 'strlen'));
+        return $list ?: self::DEFAULT_TICKET_TYPES;
+    }
 
     private function saveFormConfig(int $eventId, array $config): void
     {
