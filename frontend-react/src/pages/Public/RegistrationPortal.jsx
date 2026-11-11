@@ -4,6 +4,7 @@ import api, { API_ORIGIN } from '../../api/client'
 import Button from '../../components/Common/Button'
 import FormRenderer, { validateForm } from '../../components/FormBuilder/FormRenderer'
 import BasicFields, { basicSettings } from '../../components/FormBuilder/BasicFields'
+import { formatEventTime } from '../../utils/eventTime'
 
 /**
  * RegistrationPortal — the public-facing attendee gateway. Loads a specific
@@ -157,7 +158,7 @@ export default function RegistrationPortal() {
               <span className="pill">{event.minimum_age}+ only</span>
             )}
             {event?.starts_at_utc && (
-              <span className="pill">{new Date(event.starts_at_utc.replace(' ', 'T') + 'Z').toLocaleString()}</span>
+              <span className="pill">{formatEventTime(event.starts_at_utc, event.ends_at_utc)}</span>
             )}
           </div>
 
