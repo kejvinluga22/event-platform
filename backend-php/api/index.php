@@ -13,6 +13,7 @@ use App\Controllers\ScannerController;
 use App\Controllers\SettingsController;
 use App\Controllers\UserController;
 use App\Utils\Response;
+use App\Utils\SchemaUpgrade;
 
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/../config/database.php';
@@ -32,6 +33,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'OPTIONS') {
 }
 
 $db     = Database::connection();
+SchemaUpgrade::run($db); // adds any missing columns once per container
 $method = $_SERVER['REQUEST_METHOD'];
 
 // Derive the path after /api/ regardless of mount point.
