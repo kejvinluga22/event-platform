@@ -4,6 +4,7 @@ import api from '../../api/client'
 import Button from '../../components/Common/Button'
 import FormRenderer from '../../components/FormBuilder/FormRenderer'
 import BasicFields, { basicSettings } from '../../components/FormBuilder/BasicFields'
+import { formatEventTime } from '../../utils/eventTime'
 
 const STEPS = ['Details', 'Schedule & Capacity', 'Registration Form', 'Review']
 const FIELD_TYPES = ['text', 'email', 'tel', 'number', 'textarea', 'select', 'radio', 'checkbox', 'file']
@@ -112,6 +113,9 @@ export default function EventWizard() {
   const save = async () => {
     setError('')
     if (!event.title.trim()) { setStep(0); setError('Title is required'); return }
+    if (event.starts_at_utc && event.ends_at_utc && event.ends_at_utc < event.starts_at_utc) {
+      setStep(1); setError('The end time is before the start time'); return
+    }
     setSaving(true)
     try {
       const payload = buildPayload()
@@ -196,17 +200,21 @@ export default function EventWizard() {
           <>
             <div className="grid cols-2">
               <div className="field">
-                <label>Starts (UTC)</label>
+                <label>Starts</label>
                 <input type="datetime-local" value={event.starts_at_utc} onChange={(e) => setField('starts_at_utc', e.target.value)} />
               </div>
               <div className="field">
-                <label>Ends (UTC)</label>
+                <label>Ends</label>
                 <input type="datetime-local" value={event.ends_at_utc} onChange={(e) => setField('ends_at_utc', e.target.value)} />
               </div>
             </div>
+            <div className="muted" style={{ fontSize: 12, marginTop: -6, marginBottom: 14 }}>
+              Enter the event's local time. Guests see exactly this time on the registration link and ticket
+              {event.starts_at_utc ? <> — <b>{formatEventTime(event.starts_at_utc, event.ends_at_utc)}</b></> : ''}.
+            </div>
             <div className="grid cols-2">
               <div className="field">
-                <label>Timezone</label>
+                <label>Timezone (for reference only)</label>
                 <input value={event.timezone} onChange={(e) => setField('timezone', e.target.value)} placeholder="UTC" />
               </div>
               <div className="field">
@@ -447,7 +455,7 @@ export default function EventWizard() {
               <tbody>
                 <tr><th>Title</th><td>{event.title || '—'}</td></tr>
                 <tr><th>Venue</th><td>{event.venue || '—'}</td></tr>
-                <tr><th>Schedule</th><td>{event.starts_at_utc || '—'} → {event.ends_at_utc || '—'} ({event.timezone})</td></tr>
+                <tr><th>Schedule</th><td>{formatEventTime(event.starts_at_utc, event.ends_at_utc) || '—'}</td></tr>
                 <tr><th>Capacity</th><td>{event.capacity} {event.waitlist_enabled ? '(waitlist on)' : ''}</td></tr>
                 <tr><th>Price</th><td>{event.price === '' || Number(event.price) === 0 ? 'FREE' : `${event.price} ${event.currency}`}{event.show_price ? '' : ' (hidden from guests)'}</td></tr>
                 <tr><th>Minimum age</th><td>{Number(event.minimum_age) > 0 ? `${event.minimum_age}+` : 'No limit'}</td></tr>
