@@ -4,7 +4,7 @@
  * offline queue handled in the React layer).
  */
 
-const CACHE = 'smart-event-shell-v2'
+const CACHE = 'smart-event-shell-v3'
 const SHELL = ['/', '/index.html', '/manifest.json']
 
 self.addEventListener('install', (event) => {
@@ -34,7 +34,22 @@ self.addEventListener('fetch', (event) => {
     return
   }
 
-  // App shell: cache-first with background refresh.
+  // Pages (HTML): network-first so a new deploy shows up right away;
+  // the cached copy is only used when offline.
+  if (request.mode === 'navigate') {
+    event.respondWith(
+      fetch(request)
+        .then((res) => {
+          const copy = res.clone()
+          caches.open(CACHE).then((c) => c.put('/index.html', copy))
+          return res
+        })
+        .catch(() => caches.match('/index.html').then((r) => r || caches.match('/')))
+    )
+    return
+  }
+
+  // Static files (hashed JS/CSS, icons): cache-first with background refresh.
   event.respondWith(
     caches.match(request).then((cached) => {
       const network = fetch(request)
